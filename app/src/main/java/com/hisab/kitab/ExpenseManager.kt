@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import android.content.ContentValues
@@ -20,7 +21,7 @@ class ExpenseManager(private val db: AppDatabase) {
             put("created_at", System.currentTimeMillis())
         }
 
-        return db.writableDatabase.insert("expenses", null, values)
+        return db.writableDatabase.insertOrThrow("expenses", null, values)
     }
 
     fun totalExpenses(): Double {
@@ -40,21 +41,36 @@ class ExpenseManager(private val db: AppDatabase) {
             while (cursor.moveToNext()) {
                 result.add(
                     ExpenseEntry(
-                        id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
-                        title = cursor.getString(cursor.getColumnIndexOrThrow("title")),
-                        amount = cursor.getDouble(cursor.getColumnIndexOrThrow("amount")),
-                        createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
+                        cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("title")),
+                        cursor.getDouble(cursor.getColumnIndexOrThrow("amount")),
+                        cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
                     )
                 )
             }
         }
-
         return result
     }
 
-    fun deleteExpense(id: Long): Boolean {
-        return db.writableDatabase.delete(
-            "expenses", "id=?", arrayOf(id.toString())
+    fun updateExpense(
+        id: Long,
+        title: String,
+        amount: Double
+    ): Boolean {
+        require(title.isNotBlank() && amount > 0)
+
+        val values = ContentValues().apply {
+            put("title", title.trim())
+            put("amount", amount)
+        }
+
+        return db.writableDatabase.update(
+            "expenses", values, "id=?", arrayOf(id.toString())
         ) > 0
     }
+
+    fun deleteExpense(id: Long): Boolean =
+        db.writableDatabase.delete(
+            "expenses", "id=?", arrayOf(id.toString())
+        ) > 0
 }
