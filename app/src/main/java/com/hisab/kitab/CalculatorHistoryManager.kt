@@ -13,74 +13,73 @@ data class CalculatorHistoryItem(
     val result: String,
     val createdAt: Long
 ) {
-    fun dateText(): String {
-        return SimpleDateFormat(
+    fun dateText(): String =
+        SimpleDateFormat(
             "dd-MM-yyyy  hh:mm a",
             Locale.getDefault()
         ).format(Date(createdAt))
-    }
 }
 
 class CalculatorHistoryManager(context: Context) {
 
-    private val db = AppDatabase(context)
+    private val db = AppDatabase(context.applicationContext)
 
     fun save(expression: String, result: String): Long {
         if (expression.isBlank() || result.isBlank()) return -1L
 
         val values = ContentValues().apply {
-            put("expression", expression)
-            put("result", result)
+            put("expression", expression.trim())
+            put("result", result.trim())
             put("created_at", System.currentTimeMillis())
         }
 
         return db.writableDatabase.insert(
-            "calculator_history",
-            null,
-            values
+            "calculator_history", null, values
         )
     }
 
     fun getAll(): List<CalculatorHistoryItem> {
         val items = mutableListOf<CalculatorHistoryItem>()
 
-        val cursor = db.readableDatabase.rawQuery(
+        db.readableDatabase.rawQuery(
             "SELECT id, expression, result, created_at " +
-                "FROM calculator_history ORDER BY id DESC",
+                "FROM calculator_history ORDER BY created_at DESC",
             null
-        )
-
-        cursor.use {
-            while (it.moveToNext()) {
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
                 items.add(
                     CalculatorHistoryItem(
-                        id = it.getLong(0),
-                        expression = it.getString(1),
-                        result = it.getString(2),
-                        createdAt = it.getLong(3)
+                        cursor.getLong(0),
+                        cursor.getString(1),
+                        cursor.getString(2),
+                        cursor.getLong(3)
                     )
                 )
             }
         }
-
         return items
     }
 
-    fun delete(id: Long): Boolean {
-        return db.writableDatabase.delete(
-            "calculator_history",
-            "id = ?",
-            arrayOf(id.toString())
-        ) > 0
+    fun search(query: String): List<CalculatorHistoryItem> {
+        if (query.isBlank()) return getAll()
+
+        return getAll().filter {
+            it.expression.contains(query, true) ||
+                it.result.contains(query, true)
+        }
     }
 
-    fun clearAll() {
+    fun delete(id: Long): Boolean =
         db.writableDatabase.delete(
             "calculator_history",
-            null,
-            null
+            "id=?",
+            arrayOf(id.toString())
+        ) > 0
+
+    fun clearAll(): Int =
+        db.writableDatabase.delete(
+            "calculator_history", null, null
         )
-    }
 
     fun close() {
         db.close()
