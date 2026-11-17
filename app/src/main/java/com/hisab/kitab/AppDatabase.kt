@@ -6,11 +6,20 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 class AppDatabase(context: Context) :
-    SQLiteOpenHelper(context, "hisab_kitab.db", null, 3) {
+    SQLiteOpenHelper(context, "hisab_kitab.db", null, 4) {
 
     override fun onCreate(db: SQLiteDatabase) {
+        createProduction(db)
+        createPayments(db)
+        createExpenses(db)
+        createCalculatorHistory(db)
+        createAuditHistory(db)
+        createPiecePresets(db)
+    }
+
+    private fun createProduction(db: SQLiteDatabase) {
         db.execSQL("""
-            CREATE TABLE production (
+            CREATE TABLE IF NOT EXISTS production (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
@@ -20,27 +29,28 @@ class AppDatabase(context: Context) :
                 created_at INTEGER NOT NULL
             )
         """.trimIndent())
+    }
 
+    private fun createPayments(db: SQLiteDatabase) {
         db.execSQL("""
-            CREATE TABLE payments (
+            CREATE TABLE IF NOT EXISTS payments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 amount REAL NOT NULL,
                 note TEXT,
                 created_at INTEGER NOT NULL
             )
         """.trimIndent())
+    }
 
+    private fun createExpenses(db: SQLiteDatabase) {
         db.execSQL("""
-            CREATE TABLE expenses (
+            CREATE TABLE IF NOT EXISTS expenses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 amount REAL NOT NULL,
                 created_at INTEGER NOT NULL
             )
         """.trimIndent())
-
-        createCalculatorHistory(db)
-        createAuditHistory(db)
     }
 
     private fun createCalculatorHistory(db: SQLiteDatabase) {
@@ -72,6 +82,17 @@ class AppDatabase(context: Context) :
         """.trimIndent())
     }
 
+    private fun createPiecePresets(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS piece_presets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                rate REAL NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+
     override fun onUpgrade(
         db: SQLiteDatabase,
         oldVersion: Int,
@@ -83,6 +104,10 @@ class AppDatabase(context: Context) :
 
         if (oldVersion < 3) {
             createAuditHistory(db)
+        }
+
+        if (oldVersion < 4) {
+            createPiecePresets(db)
         }
     }
 }
