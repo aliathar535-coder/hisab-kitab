@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">HISAB-KITAB</string>
+    <string name="app_subtitle">आपके काम और कमाई का पूरा हिसाब</string>
+
+    <string name="production">काम की एंट्री</string>
+    <string name="history">काम का इतिहास</string>
+    <string name="gallery">फोटो गैलरी</string>
+    <string name="payments">जमा रकम</string>
+    <string name="expenses">खर्चा</string>
+    <string name="reports">रिपोर्ट</string>
+    <string name="settings">सेटिंग</string>
+
+    <string name="total_pieces">कुल पीस</string>
+    <string name="total_income">कुल कमाई</string>
+    <string name="total_received">मिली हुई रकम</string>
+    <string name="remaining_amount">बाकी रकम</string>
+    <string name="total_expenses">कुल खर्चा</string>
+
+    <string name="save">सेव करें</string>
+    <string name="cancel">रद्द करें</string>
+    <string name="delete">डिलीट करें</string>
+    <string name="edit">बदलें</string>
+
+</resources>
