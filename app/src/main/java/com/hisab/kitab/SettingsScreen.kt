@@ -15,7 +15,6 @@ class SettingsScreen(
     private val onLanguageChanged: () -> Unit,
     private val onBack: () -> Unit
 ) {
-
     fun show(): LinearLayout {
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -24,105 +23,91 @@ class SettingsScreen(
             layoutParams = ViewGroup.LayoutParams(-1, -1)
         }
 
-        val title = TextView(context).apply {
-            text = context.getString(R.string.settings)
-            textSize = 28f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-        }
-        root.addView(title)
+        root.addView(title(context.getString(R.string.settings), 28))
+        root.addView(info(context.getString(R.string.settings_subtitle)))
 
-        val subtitle = TextView(context).apply {
-            text = context.getString(R.string.settings_subtitle)
-            textSize = 14f
-            setTextColor(0xFFB8C5D9.toInt())
-            setPadding(0, 8, 0, 24)
-        }
-        root.addView(subtitle)
+        root.addView(title("APP CUSTOMIZATION", 20))
+        root.addView(info("ऐप के डिजाइन और Font को अपनी पसंद से बदलें।"))
 
-        val languageTitle = TextView(context).apply {
-            text = context.getString(R.string.language)
-            textSize = 20f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-        }
-        root.addView(languageTitle)
+        root.addView(actionButton("🎨 APP DESIGN STUDIO") {
+            android.app.AlertDialog.Builder(context)
+                .setTitle("App Design")
+                .setMessage("होम स्क्रीन के Design Studio बटन से Liquid Glass, Neumorphic, Holographic और Metallic स्टाइल चुनें।")
+                .setPositiveButton("ठीक है", null)
+                .show()
+        })
 
-        val info = TextView(context).apply {
-            text = context.getString(R.string.language_info)
-            textSize = 13f
-            setTextColor(0xFFB8C5D9.toInt())
-            setPadding(0, 8, 0, 16)
-        }
-        root.addView(info)
+        root.addView(actionButton("🔤 FONT STUDIO") {
+            android.app.AlertDialog.Builder(context)
+                .setTitle("Font Studio")
+                .setMessage("होम स्क्रीन के Font Studio में Font Family, Bold, Italic, Shadow, Outline और Letter Spacing बदलें।")
+                .setPositiveButton("ठीक है", null)
+                .show()
+        })
+
+        root.addView(title(context.getString(R.string.language), 20))
+        root.addView(info(context.getString(R.string.language_info)))
 
         val selected = LanguageManager.getLanguage(context)
-
-        val hindi = languageButton(
-            context.getString(R.string.hindi),
-            selected == "hi"
-        )
-        hindi.setOnClickListener {
+        root.addView(languageButton(context.getString(R.string.hindi), selected == "hi") {
             if (LanguageManager.getLanguage(context) != "hi") {
                 LanguageManager.setLanguage(context, "hi")
                 onLanguageChanged()
             }
-        }
-        root.addView(hindi)
-
-        val english = languageButton(
-            context.getString(R.string.english),
-            selected == "en"
-        )
-        english.setOnClickListener {
+        })
+        root.addView(languageButton(context.getString(R.string.english), selected == "en") {
             if (LanguageManager.getLanguage(context) != "en") {
                 LanguageManager.setLanguage(context, "en")
                 onLanguageChanged()
             }
-        }
-        root.addView(english)
-
-        val note = TextView(context).apply {
-            text = context.getString(R.string.language_note)
-            textSize = 12f
-            setTextColor(0xFF8FA3BF.toInt())
-            setPadding(4, 16, 4, 20)
-        }
-        root.addView(note)
-
-        root.addView(Button(context).apply {
-            text = context.getString(R.string.back_home)
-            isAllCaps = false
-            setOnClickListener { onBack() }
         })
 
+        root.addView(info(context.getString(R.string.language_note)))
+
+        root.addView(actionButton(context.getString(R.string.back_home), onBack))
         return root
     }
 
+    private fun title(value: String, size: Int) = TextView(context).apply {
+        text = value
+        textSize = size.toFloat()
+        setTextColor(Color.WHITE)
+        setTypeface(null, Typeface.BOLD)
+        setPadding(0, 12, 0, 8)
+    }
+
+    private fun info(value: String) = TextView(context).apply {
+        text = value
+        textSize = 14f
+        setTextColor(0xFFB8C5D9.toInt())
+        setPadding(4, 8, 4, 14)
+    }
+
+    private fun actionButton(value: String, action: () -> Unit) =
+        Button(context).apply {
+            text = value
+            isAllCaps = false
+            setOnClickListener { action() }
+        }
+
     private fun languageButton(
         label: String,
-        selected: Boolean
+        selected: Boolean,
+        action: () -> Unit
     ): Button {
         return Button(context).apply {
             text = if (selected) "✓  $label" else label
             isAllCaps = false
             textSize = 17f
             setTextColor(Color.WHITE)
-
             background = GradientDrawable().apply {
-                setColor(
-                    if (selected) 0xFF164E63.toInt()
-                    else 0xFF26364D.toInt()
-                )
+                setColor(if (selected) 0xFF164E63.toInt() else 0xFF26364D.toInt())
                 cornerRadius = 20f
             }
-
-            layoutParams = LinearLayout.LayoutParams(
-                -1,
-                64
-            ).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, 64).apply {
                 bottomMargin = 12
             }
+            setOnClickListener { action() }
         }
     }
 }
