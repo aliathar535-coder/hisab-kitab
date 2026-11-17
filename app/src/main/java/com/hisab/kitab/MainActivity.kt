@@ -38,55 +38,79 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        LanguageManager.applyLanguage(this)
-        db = AppDatabase(this)
+        try {
+            LanguageManager.applyLanguage(this)
+            db = AppDatabase(this)
 
-        galleryLauncher = registerForActivityResult(
-            ActivityResultContracts.GetContent()
-        ) { uri ->
-            if (uri != null) saveSelectedPhoto(uri)
-        }
+            galleryLauncher = registerForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri ->
+                if (uri != null) saveSelectedPhoto(uri)
+            }
 
-        cameraLauncher = registerForActivityResult(
-            ActivityResultContracts.TakePicture()
-        ) { success ->
-            val uri = cameraUri
-            if (success && uri != null) saveSelectedPhoto(uri)
-            else showMessage("फोटो नहीं लिया जा सका।")
-        }
+            cameraLauncher = registerForActivityResult(
+                ActivityResultContracts.TakePicture()
+            ) { success ->
+                val uri = cameraUri
+                if (success && uri != null) saveSelectedPhoto(uri)
+                else showMessage("फोटो नहीं लिया जा सका।")
+            }
 
-        backupCreateLauncher = registerForActivityResult(
-            ActivityResultContracts.CreateDocument("application/zip")
-        ) { uri ->
-            if (uri != null) exportBackup(uri)
-        }
+            backupCreateLauncher = registerForActivityResult(
+                ActivityResultContracts.CreateDocument("application/zip")
+            ) { uri ->
+                if (uri != null) exportBackup(uri)
+            }
 
-        backupOpenLauncher = registerForActivityResult(
-            ActivityResultContracts.OpenDocument()
-        ) { uri ->
-            if (uri != null) restoreBackup(uri)
-        }
+            backupOpenLauncher = registerForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) restoreBackup(uri)
+            }
 
-        showHome()
+            showHome()
 
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (drawerOpen) {
-                        drawerOpen = false
-                        showHome()
-                    } else {
-                        AlertDialog.Builder(this@MainActivity)
-                            .setTitle("ऐप बंद करें?")
-                            .setMessage("क्या आप HISAB-KITAB बंद करना चाहते हैं?")
-                            .setNegativeButton("नहीं", null)
-                            .setPositiveButton("हाँ") { _, _ -> finish() }
-                            .show()
+            onBackPressedDispatcher.addCallback(
+                this,
+                object : OnBackPressedCallback(true) {
+                    override fun handleOnBackPressed() {
+                        if (drawerOpen) {
+                            drawerOpen = false
+                            showHome()
+                        } else {
+                            AlertDialog.Builder(this@MainActivity)
+                                .setTitle("ऐप बंद करें?")
+                                .setMessage("क्या आप HISAB-KITAB बंद करना चाहते हैं?")
+                                .setNegativeButton("नहीं", null)
+                                .setPositiveButton("हाँ") { _, _ -> finish() }
+                                .show()
+                        }
                     }
                 }
-            }
-        )
+            )
+        } catch (e: Exception) {
+            showStartupError(e)
+        }
+    }
+
+    private fun showStartupError(error: Exception) {
+        val details = error.stackTraceToString()
+
+        val message = TextView(this).apply {
+            text = "HISAB-KITAB STARTUP ERROR\n\n" +
+                error.javaClass.name + "\n\n" +
+                (error.message ?: "कोई अतिरिक्त जानकारी नहीं") +
+                "\n\nपूरा विवरण:\n" + details
+            textSize = 14f
+            setTextColor(android.graphics.Color.WHITE)
+            setPadding(24, 24, 24, 24)
+            setTextIsSelectable(true)
+        }
+
+        val scroll = ScrollView(this)
+        scroll.setBackgroundColor(0xFF101827.toInt())
+        scroll.addView(message)
+        setContentView(scroll)
     }
 
     private fun baseLayout(): LinearLayout =
@@ -521,6 +545,7 @@ class MainActivity : AppCompatActivity() {
                                     event.y - lastY
                                 )
                                 imageMatrix = matrixValue
+                                
                             }
                             lastX = event.x
                             lastY = event.y
