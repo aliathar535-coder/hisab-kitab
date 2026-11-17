@@ -1,0 +1,62 @@
+
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">हिसाब-किताब</string>
+    <string name="app_subtitle">आपके काम और कमाई का पूरा हिसाब</string>
+
+    <string name="production">काम की एंट्री</string>
+    <string name="history">काम का इतिहास</string>
+    <string name="gallery">फोटो गैलरी</string>
+    <string name="payments">जमा रकम</string>
+    <string name="expenses">खर्चा</string>
+    <string name="reports">रिपोर्ट</string>
+    <string name="settings">सेटिंग</string>
+
+    <string name="total_pieces">कुल पीस</string>
+    <string name="total_income">कुल कमाई</string>
+    <string name="total_received">मिली हुई रकम</string>
+    <string name="remaining_amount">बाकी रकम</string>
+    <string name="total_expenses">कुल खर्चा</string>
+
+    <string name="save">सेव करें</string>
+    <string name="cancel">रद्द करें</string>
+    <string name="delete">डिलीट करें</string>
+    <string name="edit">बदलें</string>
+
+    <string name="smart_calculator">स्मार्ट कैलकुलेटर</string>
+    <string name="add_piece">＋ नया पीस जोड़ें</string>
+    <string name="add_payment">₹ पेमेंट जोड़ें</string>
+    <string name="add_expense">खर्च जोड़ें</string>
+    <string name="piece_history">पीस हिस्ट्री</string>
+    <string name="settings_subtitle">अपने ऐप को अपनी पसंद से सेट करें</string>
+
+    <string name="language">ऐप की भाषा</string>
+    <string name="language_info">अपने ऐप की भाषा चुनें।</string>
+    <string name="hindi">हिंदी</string>
+    <string name="english">English</string>
+    <string name="language_note">भाषा बदलने पर आपका पुराना हिसाब और फोटो सुरक्षित रहेंगे।</string>
+    <string name="back_home">होम पर वापस जाएँ</string>
+
+    <string name="exit_title">ऐप बंद करें?</string>
+    <string name="exit_message">क्या आप HISAB-KITAB बंद करना चाहते हैं?</string>
+    <string name="no">नहीं</string>
+    <string name="yes">हाँ</string>
+    <string name="close">बंद करें</string>
+
+    <string name="piece_name">पीस का नाम</string>
+    <string name="piece_quantity">कितने पीस बनाए?</string>
+    <string name="piece_rate">एक पीस का रेट</string>
+    <string name="new_piece">नया पीस जोड़ें</string>
+    <string name="payment_amount">मिली हुई रकम</string>
+    <string name="new_payment">पेमेंट जोड़ें</string>
+    <string name="expense_name">खर्च का नाम</string>
+    <string name="expense_amount">खर्च की रकम</string>
+    <string name="new_expense">नया खर्च</string>
+    <string name="empty_history">अभी कोई पीस दर्ज नहीं है।</string>
+    <string name="valid_piece">सही नाम, मात्रा और रेट भरें।</string>
+    <string name="valid_amount">सही रकम लिखें।</string>
+    <string name="valid_expense">खर्च का नाम और सही रकम लिखें।</string>
+    <string name="design_next">डिजाइन स्टूडियो अगले अपडेट में जोड़ा जाएगा।</string>
+
+</resources>
