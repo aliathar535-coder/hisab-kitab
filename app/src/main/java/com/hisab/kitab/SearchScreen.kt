@@ -1,9 +1,9 @@
+
 package com.hisab.kitab
 
 import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
 import android.widget.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -35,7 +35,7 @@ class SearchScreen(
         val search = EditText(context).apply {
             hint = "नाम, रकम, तारीख या विवरण लिखें"
             textSize = 16f
-            singleLine = true
+            setSingleLine(true)
         }
 
         val count = TextView(context).apply {
@@ -97,7 +97,7 @@ class SearchScreen(
                         it.title + " " +
                             it.detail + " " +
                             dateFormat.format(Date(it.timestamp))
-                        ).contains(query, ignoreCase = true)
+                    ).contains(query, ignoreCase = true)
                 }
             }
 
