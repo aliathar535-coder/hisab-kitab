@@ -428,7 +428,7 @@ class MainActivity : AppCompatActivity() {
             homeVisible = true
         }
         dialog.show()
-    }
+            }
 
     private fun showAddPiece() {
         selectedPhotoPath = null
@@ -724,8 +724,9 @@ class MainActivity : AppCompatActivity() {
                 imageMatrix = matrixValue
             }
         }
-        }
-            private fun showCalculator() {
+    }
+
+    private fun showCalculator() {
         homeVisible = false
 
         val calculatorView = CalculatorScreen(this).show()
@@ -859,6 +860,8 @@ class MainActivity : AppCompatActivity() {
                         "रकम: ${money(item.amount)}\n" +
                             "विवरण: ${item.note.orEmpty()}\n" +
                             "तारीख: ${date(item.createdAt)}"
+                    )
+                                                "तारीख: ${date(item.createdAt)}"
                     )
                     .setNeutralButton("Edit") { _, _ ->
                         editPayment(item.id, item.amount, item.note)
