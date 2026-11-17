@@ -1,26 +1,62 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
     <string name="app_name">HISAB-KITAB</string>
-    <string name="app_subtitle">आपके काम और कमाई का पूरा हिसाब</string>
+    <string name="app_subtitle">Your complete work and income tracker</string>
 
-    <string name="production">काम की एंट्री</string>
-    <string name="history">काम का इतिहास</string>
-    <string name="gallery">फोटो गैलरी</string>
-    <string name="payments">जमा रकम</string>
-    <string name="expenses">खर्चा</string>
-    <string name="reports">रिपोर्ट</string>
-    <string name="settings">सेटिंग</string>
+    <string name="production">Production Entry</string>
+    <string name="history">Work History</string>
+    <string name="gallery">Photo Gallery</string>
+    <string name="payments">Payments</string>
+    <string name="expenses">Expenses</string>
+    <string name="reports">Reports</string>
+    <string name="settings">Settings</string>
 
-    <string name="total_pieces">कुल पीस</string>
-    <string name="total_income">कुल कमाई</string>
-    <string name="total_received">मिली हुई रकम</string>
-    <string name="remaining_amount">बाकी रकम</string>
-    <string name="total_expenses">कुल खर्चा</string>
+    <string name="total_pieces">Total Pieces</string>
+    <string name="total_income">Total Earnings</string>
+    <string name="total_received">Amount Received</string>
+    <string name="remaining_amount">Remaining Amount</string>
+    <string name="total_expenses">Total Expenses</string>
 
-    <string name="save">सेव करें</string>
-    <string name="cancel">रद्द करें</string>
-    <string name="delete">डिलीट करें</string>
-    <string name="edit">बदलें</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+
+    <string name="smart_calculator">SMART CALCULATOR</string>
+    <string name="add_piece">＋ Add New Piece</string>
+    <string name="add_payment">₹ Add Payment</string>
+    <string name="add_expense">Add Expense</string>
+    <string name="piece_history">Piece History</string>
+    <string name="settings_subtitle">Personalize your application</string>
+
+    <string name="language">App Language</string>
+    <string name="language_info">Choose the language of your application.</string>
+    <string name="hindi">हिंदी</string>
+    <string name="english">English</string>
+    <string name="language_note">Your saved records and photos will remain safe when changing language.</string>
+    <string name="back_home">Back to Home</string>
+
+    <string name="exit_title">Exit Application?</string>
+    <string name="exit_message">Do you want to close HISAB-KITAB?</string>
+    <string name="no">No</string>
+    <string name="yes">Yes</string>
+    <string name="close">Close</string>
+
+    <string name="piece_name">Piece Name</string>
+    <string name="piece_quantity">How many pieces?</string>
+    <string name="piece_rate">Rate per piece</string>
+    <string name="new_piece">Add New Piece</string>
+    <string name="payment_amount">Payment Amount</string>
+    <string name="new_payment">Add Payment</string>
+    <string name="expense_name">Expense Name</string>
+    <string name="expense_amount">Expense Amount</string>
+    <string name="new_expense">Add New Expense</string>
+    <string name="empty_history">No pieces have been recorded yet.</string>
+    <string name="valid_piece">Enter a valid name, quantity and rate.</string>
+    <string name="valid_amount">Enter a valid amount.</string>
+    <string name="valid_expense">Enter an expense name and valid amount.</string>
+    <string name="design_next">Design Studio will be connected in the next update.</string>
 
 </resources>
