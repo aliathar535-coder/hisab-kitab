@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import android.content.ContentValues
@@ -32,36 +33,72 @@ class ProductionManager(private val db: AppDatabase) {
             put("created_at", System.currentTimeMillis())
         }
 
-        return db.writableDatabase.insert("production", null, values)
+        return db.writableDatabase.insertOrThrow("production", null, values)
     }
 
     fun getAllEntries(): List<ProductionEntry> {
         val result = mutableListOf<ProductionEntry>()
-        val cursor = db.readableDatabase.rawQuery(
+
+        db.readableDatabase.rawQuery(
             "SELECT * FROM production ORDER BY created_at DESC",
             null
-        )
-        cursor.use {
-            while (it.moveToNext()) result.add(it.toEntry())
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(cursor.toEntry())
+            }
         }
         return result
     }
 
-    fun totalQuantity(): Int {
-        return scalarLong("SELECT COALESCE(SUM(quantity),0) FROM production").toInt()
+    fun getEntry(id: Long): ProductionEntry? {
+        db.readableDatabase.rawQuery(
+            "SELECT * FROM production WHERE id=?",
+            arrayOf(id.toString())
+        ).use { cursor ->
+            return if (cursor.moveToFirst()) cursor.toEntry() else null
+        }
     }
 
-    fun totalAmount(): Double {
-        return scalarLong("SELECT COALESCE(SUM(total),0) FROM production")
-    }
+    fun totalQuantity(): Int =
+        scalar("SELECT COALESCE(SUM(quantity),0)").toInt()
 
-    fun deleteEntry(id: Long): Boolean {
-        return db.writableDatabase.delete(
-            "production", "id=?", arrayOf(id.toString())
-        ) > 0
+    fun totalAmount(): Double =
+        scalar("SELECT COALESCE(SUM(total),0)")
+
+    private fun scalar(expression: String): Double {
+        db.readableDatabase.rawQuery(
+            "SELECT $expression FROM production", null
+        ).use {
+            return if (it.moveToFirst()) it.getDouble(0) else 0.0
+        }
     }
 
     fun updateEntry(
+        id: Long,
+        name: String,
+        quantity: Int,
+        rate: Double,
+        photo: String? = null
+    ): Boolean {
+        require(name.isNotBlank() && quantity > 0 && rate >= 0)
+
+        val values = ContentValues().apply {
+            put("name", name.trim())
+            put("quantity", quantity)
+            put("rate", rate)
+            put("total", quantity * rate)
+            put("photo", photo)
+        }
+
+        return db.writableDatabase.update(
+            "production",
+            values,
+            "id=?",
+            arrayOf(id.toString())
+        ) > 0
+    }
+
+    fun updateDetails(
         id: Long,
         name: String,
         quantity: Int,
@@ -81,11 +118,19 @@ class ProductionManager(private val db: AppDatabase) {
         ) > 0
     }
 
-    private fun scalarLong(query: String): Double {
-        db.readableDatabase.rawQuery(query, null).use {
-            return if (it.moveToFirst()) it.getDouble(0) else 0.0
+    fun updatePhoto(id: Long, photo: String?): Boolean {
+        val values = ContentValues().apply {
+            put("photo", photo)
         }
+        return db.writableDatabase.update(
+            "production", values, "id=?", arrayOf(id.toString())
+        ) > 0
     }
+
+    fun deleteEntry(id: Long): Boolean =
+        db.writableDatabase.delete(
+            "production", "id=?", arrayOf(id.toString())
+        ) > 0
 
     private fun Cursor.toEntry() = ProductionEntry(
         id = getLong(getColumnIndexOrThrow("id")),
