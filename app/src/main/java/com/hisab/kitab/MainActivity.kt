@@ -1,24 +1,59 @@
 
 package com.hisab.kitab
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.widget.*
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var db: AppDatabase
+    private lateinit var galleryLauncher: ActivityResultLauncher<String>
+    private lateinit var cameraLauncher: ActivityResultLauncher<Uri>
+
+    private var cameraUri: Uri? = null
+    private var selectedPhotoPath: String? = null
     private var drawerOpen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         db = AppDatabase(this)
+
+        galleryLauncher = registerForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri ->
+            if (uri != null) {
+                saveSelectedPhoto(uri)
+            }
+        }
+
+        cameraLauncher = registerForActivityResult(
+            ActivityResultContracts.TakePicture()
+        ) { success ->
+            val uri = cameraUri
+            if (success && uri != null) {
+                saveSelectedPhoto(uri)
+            } else {
+                showMessage("फोटो नहीं लिया जा सका। दोबारा कोशिश करें।")
+            }
+        }
+
         showHome()
 
         onBackPressedDispatcher.addCallback(
@@ -61,23 +96,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         scroll.addView(content)
-        root.addView(scroll)
-
-        content.addView(
-            text(
-                "HISAB-KITAB",
-                28f,
-                0xFFFFFFFF.toInt(),
-                true
-            )
+        root.addView(
+            scroll,
+            LinearLayout.LayoutParams(-1, -1)
         )
 
         content.addView(
-            text(
-                "आपके काम का पूरा हिसाब",
-                14f,
-                0xFFB8C5D9.toInt()
-            )
+            text("HISAB-KITAB", 28f, 0xFFFFFFFF.toInt(), true)
+        )
+
+        content.addView(
+            text("आपके काम का पूरा हिसाब", 14f, 0xFFB8C5D9.toInt())
         )
 
         val production = ProductionManager(db)
@@ -117,10 +146,204 @@ class MainActivity : AppCompatActivity() {
         }
 
         addButton(content, "डिजाइन और STYLE") {
-            showMessage("Design Studio अगले सुधार में जोड़ा जाएगा।")
+            showMessage("Design Studio अगले अपडेट में जोड़ा जाएगा।")
         }
 
         setContentView(root)
+    }
+
+    private fun showAddPiece() {
+        selectedPhotoPath = null
+
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20, 8, 20, 8)
+        }
+
+        val name = EditText(this).apply {
+            hint = "पीस का नाम"
+        }
+
+        val quantity = EditText(this).apply {
+            hint = "कितने पीस बनाए?"
+            inputType = 2
+        }
+
+        val rate = EditText(this).apply {
+            hint = "एक पीस का रेट"
+            inputType = 8194
+        }
+
+        val photoPreview = ImageView(this).apply {
+            visibility = View.GONE
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            maxHeight = 220
+        }
+
+        val photoStatus = text(
+            "अभी कोई फोटो नहीं चुना गया",
+            13f,
+            0xFFB8C5D9.toInt()
+        )
+
+        val photoButton = Button(this).apply {
+            text = "📷 कैमरा / गैलरी से फोटो जोड़ें"
+            isAllCaps = false
+        }
+
+        photoButton.setOnClickListener {
+            showPhotoOptions(photoPreview, photoStatus)
+        }
+
+        box.addView(name)
+        box.addView(quantity)
+        box.addView(rate)
+        box.addView(space())
+        box.addView(photoButton)
+        box.addView(photoStatus)
+        box.addView(photoPreview)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("नया पीस जोड़ें")
+            .setView(box)
+            .setNegativeButton("रद्द", null)
+            .setPositiveButton("सेव करें", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener {
+                    val q = quantity.text.toString().toIntOrNull() ?: 0
+                    val r = rate.text.toString().toDoubleOrNull() ?: 0.0
+
+                    if (name.text.isBlank() || q <= 0 || r < 0) {
+                        showMessage("सही नाम, मात्रा और रेट भरें।")
+                        return@setOnClickListener
+                    }
+
+                    ProductionManager(db).addEntry(
+                        name.text.toString(),
+                        q,
+                        r,
+                        selectedPhotoPath
+                    )
+
+                    selectedPhotoPath = null
+                    dialog.dismiss()
+                    showHome()
+                }
+        }
+
+        dialog.setOnDismissListener {
+            selectedPhotoPath = null
+        }
+
+        dialog.show()
+    }
+
+    private fun showPhotoOptions(
+        preview: ImageView,
+        status: TextView
+    ) {
+        AlertDialog.Builder(this)
+            .setTitle("फोटो कहाँ से जोड़ना है?")
+            .setItems(
+                arrayOf("📷 कैमरा से फोटो खींचें", "🖼️ गैलरी से फोटो चुनें")
+            ) { _, which ->
+                when (which) {
+                    0 -> openCamera()
+                    1 -> galleryLauncher.launch("image/*")
+                }
+            }
+            .setNegativeButton("रद्द", null)
+            .show()
+
+        photoPreviewTarget = preview
+        photoStatusTarget = status
+    }
+
+    private var photoPreviewTarget: ImageView? = null
+    private var photoStatusTarget: TextView? = null
+
+    private fun openCamera() {
+        try {
+            val cameraFolder = File(cacheDir, "camera").apply {
+                if (!exists()) mkdirs()
+            }
+
+            val photoFile = File(
+                cameraFolder,
+                "camera_${System.currentTimeMillis()}.jpg"
+            )
+
+            cameraUri = FileProvider.getUriForFile(
+                this,
+                "${BuildConfig.APPLICATION_ID}.fileprovider",
+                photoFile
+            )
+
+            cameraLauncher.launch(cameraUri!!)
+        } catch (e: Exception) {
+            showMessage("कैमरा खोलने में समस्या हुई: ${e.message}")
+        }
+    }
+
+    private fun saveSelectedPhoto(uri: Uri) {
+        try {
+            val path = PhotoManager(this).savePhoto(uri)
+
+            if (path.isNullOrBlank()) {
+                showMessage("फोटो सेव नहीं हो सकी।")
+                return
+            }
+
+            selectedPhotoPath = path
+
+            val bitmap = loadSafePreview(path)
+            val preview = photoPreviewTarget
+            val status = photoStatusTarget
+
+            if (bitmap != null && preview != null) {
+                preview.setImageBitmap(bitmap)
+                preview.visibility = View.VISIBLE
+            }
+
+            status?.text = "✓ फोटो एंट्री के लिए तैयार है"
+        } catch (e: Exception) {
+            showMessage("फोटो सेव करने में समस्या हुई।")
+        }
+    }
+
+    private fun loadSafePreview(path: String): Bitmap? {
+        return try {
+            val bounds = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+
+            BitmapFactory.decodeFile(path, bounds)
+
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return null
+            }
+
+            var sample = 1
+            while (
+                bounds.outWidth / sample > 1000 ||
+                bounds.outHeight / sample > 1000
+            ) {
+                sample *= 2
+            }
+
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+
+            BitmapFactory.decodeFile(path, options)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun showCalculator() {
@@ -163,7 +386,6 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     startX = event.rawX
                     startY = event.rawY
-
                     initialX = window.attributes.x
                     initialY = window.attributes.y
                     true
@@ -171,15 +393,12 @@ class MainActivity : AppCompatActivity() {
 
                 MotionEvent.ACTION_MOVE -> {
                     val updated = window.attributes
-
                     updated.x = (
                         initialX + event.rawX - startX
                     ).toInt().coerceAtLeast(0)
-
                     updated.y = (
                         initialY + event.rawY - startY
                     ).toInt().coerceAtLeast(0)
-
                     window.attributes = updated
                     true
                 }
@@ -187,54 +406,6 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
-    }
-
-    private fun showAddPiece() {
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 8, 20, 8)
-        }
-
-        val name = EditText(this).apply {
-            hint = "पीस का नाम"
-        }
-
-        val quantity = EditText(this).apply {
-            hint = "कितने पीस बनाए?"
-            inputType = 2
-        }
-
-        val rate = EditText(this).apply {
-            hint = "एक पीस का रेट"
-            inputType = 8194
-        }
-
-        box.addView(name)
-        box.addView(quantity)
-        box.addView(rate)
-
-        AlertDialog.Builder(this)
-            .setTitle("नया पीस जोड़ें")
-            .setView(box)
-            .setNegativeButton("रद्द", null)
-            .setPositiveButton("सेव करें") { _, _ ->
-                val q = quantity.text.toString().toIntOrNull() ?: 0
-                val r = rate.text.toString().toDoubleOrNull() ?: 0.0
-
-                if (name.text.isBlank() || q <= 0 || r < 0) {
-                    showMessage("सही नाम, मात्रा और रेट भरें।")
-                    return@setPositiveButton
-                }
-
-                ProductionManager(db).addEntry(
-                    name.text.toString(),
-                    q,
-                    r
-                )
-
-                showHome()
-            }
-            .show()
     }
 
     private fun showPayment() {
@@ -263,6 +434,7 @@ class MainActivity : AppCompatActivity() {
     private fun showExpense() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setPadding(20, 8, 20, 8)
         }
 
         val title = EditText(this).apply {
@@ -305,7 +477,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             entries.joinToString("\n\n") {
                 "${it.name}\n${it.quantity} पीस × " +
-                    "${money(it.rate)} = ${money(it.total)}"
+                    "${money(it.rate)} = ${money(it.total)}" +
+                    if (it.photo != null) "\n📷 फोटो जुड़ी हुई है" else ""
             }
         }
 
@@ -323,13 +496,8 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(0xFF202D42.toInt())
         }
 
-        card.addView(
-            text(title, 14f, 0xFFB8C5D9.toInt())
-        )
-
-        card.addView(
-            text(value, 23f, 0xFFFFFFFF.toInt(), true)
-        )
+        card.addView(text(title, 14f, 0xFFB8C5D9.toInt()))
+        card.addView(text(value, 23f, 0xFFFFFFFF.toInt(), true))
 
         val params = LinearLayout.LayoutParams(-1, -2)
         params.bottomMargin = 12
