@@ -21,7 +21,8 @@ class MainActivity : AppCompatActivity() {
         db = AppDatabase(this)
         showHome()
 
-        onBackPressedDispatcher.addCallback(this,
+        onBackPressedDispatcher.addCallback(
+            this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     if (drawerOpen) {
@@ -38,7 +39,8 @@ class MainActivity : AppCompatActivity() {
                             .show()
                     }
                 }
-            })
+            }
+        )
     }
 
     private fun baseLayout(): LinearLayout {
@@ -61,18 +63,22 @@ class MainActivity : AppCompatActivity() {
         scroll.addView(content)
         root.addView(scroll)
 
-        content.addView(text(
-            "HISAB-KITAB",
-            28,
-            0xFFFFFFFF.toInt(),
-            true
-        ))
+        content.addView(
+            text(
+                "HISAB-KITAB",
+                28f,
+                0xFFFFFFFF.toInt(),
+                true
+            )
+        )
 
-        content.addView(text(
-            "आपके काम का पूरा हिसाब",
-            14,
-            0xFFB8C5D9.toInt()
-        ))
+        content.addView(
+            text(
+                "आपके काम का पूरा हिसाब",
+                14f,
+                0xFFB8C5D9.toInt()
+            )
+        )
 
         val production = ProductionManager(db)
         val totalPieces = production.totalQuantity()
@@ -225,6 +231,7 @@ class MainActivity : AppCompatActivity() {
                     q,
                     r
                 )
+
                 showHome()
             }
             .show()
@@ -316,8 +323,13 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(0xFF202D42.toInt())
         }
 
-        card.addView(text(title, 14, 0xFFB8C5D9.toInt()))
-        card.addView(text(value, 23, 0xFFFFFFFF.toInt(), true))
+        card.addView(
+            text(title, 14f, 0xFFB8C5D9.toInt())
+        )
+
+        card.addView(
+            text(value, 23f, 0xFFFFFFFF.toInt(), true)
+        )
 
         val params = LinearLayout.LayoutParams(-1, -2)
         params.bottomMargin = 12
