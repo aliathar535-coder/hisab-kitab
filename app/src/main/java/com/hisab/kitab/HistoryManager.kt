@@ -16,16 +16,14 @@ class HistoryManager(private val db: AppDatabase) {
     fun getExpenseHistory(): List<ExpenseEntry> =
         ExpenseManager(db).getAllExpenses()
 
-    fun formatDate(timestamp: Long): String {
-        return SimpleDateFormat(
+    fun formatDate(timestamp: Long): String =
+        SimpleDateFormat(
             "dd MMM yyyy, hh:mm a",
             Locale.getDefault()
         ).format(Date(timestamp))
-    }
 
-    fun formatMoney(amount: Double): String {
-        return "₹" + String.format(Locale.getDefault(), "%.2f", amount)
-    }
+    fun formatMoney(amount: Double): String =
+        "₹" + String.format(Locale.getDefault(), "%.2f", amount)
 
     fun getSummary(): Summary {
         val production = ProductionManager(db)
@@ -38,7 +36,7 @@ class HistoryManager(private val db: AppDatabase) {
         val profit = income - spent
 
         val percentage = if (income > 0.0) {
-            (profit / income) * 100.0
+            profit / income * 100.0
         } else {
             0.0
         }
