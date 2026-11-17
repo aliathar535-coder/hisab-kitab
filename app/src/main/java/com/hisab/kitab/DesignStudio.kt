@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import android.content.Context
@@ -5,7 +6,6 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
-import android.widget.Button
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -70,15 +70,17 @@ class DesignStudio(private val context: Context) {
 
         styles.forEachIndexed { index, name ->
             val number = index + 1
+            val styleColor = colors[index]
 
             val card = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 setPadding(12, 16, 12, 16)
+
                 background = GradientDrawable().apply {
                     setColor(0xFF202D42.toInt())
                     cornerRadius = 22f
-                    setStroke(2, colors[index])
+                    setStroke(2, styleColor)
                 }
             }
 
@@ -86,10 +88,11 @@ class DesignStudio(private val context: Context) {
                 text = "मेरा हिसाब"
                 textSize = 21f
                 gravity = Gravity.CENTER
-                setTextColor(colors[index])
+                setTextColor(styleColor)
                 setTypeface(
                     Typeface.DEFAULT,
-                    if (number % 3 == 0) Typeface.ITALIC else Typeface.BOLD
+                    if (number % 3 == 0) Typeface.ITALIC
+                    else Typeface.BOLD
                 )
             }
 
@@ -106,14 +109,18 @@ class DesignStudio(private val context: Context) {
 
             card.setOnClickListener {
                 manager.saveTextStyle(number)
-                showPreview(name, number, colors[index])
+                showPreview(name, number, styleColor)
             }
 
             val params = GridLayout.LayoutParams().apply {
                 width = 0
-                columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                columnSpec = GridLayout.spec(
+                    GridLayout.UNDEFINED,
+                    1f
+                )
                 setMargins(5, 5, 5, 5)
             }
+
             grid.addView(card, params)
         }
 
@@ -121,7 +128,11 @@ class DesignStudio(private val context: Context) {
         return root
     }
 
-    private fun showPreview(name: String, number: Int, color: Int) {
+    private fun showPreview(
+        name: String,
+        number: Int,
+        color: Int
+    ) {
         val preview = TextView(context).apply {
             text = "मेरा हिसाब"
             textSize = 30f
