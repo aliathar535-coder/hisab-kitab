@@ -170,7 +170,7 @@ class DesignManager(context: Context) {
     private fun orientationFor(angle: Int): GradientDrawable.Orientation {
         return when (((angle % 360) + 360) % 360) {
             in 0..22, in 338..359 -> GradientDrawable.Orientation.LEFT_RIGHT
-            in 23..67 -> GradientDrawable.Orientation.BL_T
+            in 23..67 -> GradientDrawable.Orientation.BL_TR
             in 68..112 -> GradientDrawable.Orientation.BOTTOM_TOP
             in 113..157 -> GradientDrawable.Orientation.BR_TL
             in 158..202 -> GradientDrawable.Orientation.RIGHT_LEFT
@@ -180,7 +180,6 @@ class DesignManager(context: Context) {
         }
     }
 
-    // पुराने कलर API भी सुरक्षित रखे गए हैं।
     fun saveBoxColor(boxId: String, color: Int) {
         prefs.edit().putInt("box_color_$boxId", color).apply()
     }
