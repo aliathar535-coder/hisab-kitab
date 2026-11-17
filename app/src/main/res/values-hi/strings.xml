@@ -1,7 +1,6 @@
 
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">हिसाब-किताब</string>
     <string name="app_subtitle">आपके काम और कमाई का पूरा हिसाब</string>
 
@@ -58,5 +57,4 @@
     <string name="valid_amount">सही रकम लिखें।</string>
     <string name="valid_expense">खर्च का नाम और सही रकम लिखें।</string>
     <string name="design_next">डिजाइन स्टूडियो अगले अपडेट में जोड़ा जाएगा।</string>
-
 </resources>
