@@ -1,154 +1,144 @@
 
 package com.hisab.kitab
 
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.text.InputType
 import android.view.Gravity
-import android.widget.GridLayout
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.widget.*
 
 class DesignStudio(private val context: Context) {
-
     private val manager = DesignManager(context)
+    private var accent = manager.getAppAccent()
 
     private val styles = listOf(
-        "Royal 3D", "Neon Glow", "Fire", "Chrome", "Ice",
-        "Nature", "Rainbow", "Wood", "Paper", "Glitch",
-        "Speed", "Bubble", "Smoke", "Diamond", "Electric",
-        "Glass", "Metallic", "Gold", "Silver", "Retro",
-        "Cyber", "Shadow", "Outline", "Elegant", "Luxury",
-        "Bold", "Minimal", "Gradient", "Classic", "Custom"
-    )
-
-    private val colors = listOf(
-        0xFFFFD700.toInt(), 0xFF00E5FF.toInt(),
-        0xFFFF5722.toInt(), 0xFFC0C0C0.toInt(),
-        0xFF80DEEA.toInt(), 0xFF4CAF50.toInt(),
-        0xFFE040FB.toInt(), 0xFF795548.toInt(),
-        0xFFFFE0B2.toInt(), 0xFF00BCD4.toInt(),
-        0xFF448AFF.toInt(), 0xFFFF80AB.toInt(),
-        0xFFB0BEC5.toInt(), 0xFFB388FF.toInt(),
-        0xFF00E676.toInt(), 0xFF80CBC4.toInt(),
-        0xFFBDBDBD.toInt(), 0xFFFFD54F.toInt(),
-        0xFFE0E0E0.toInt(), 0xFFFFAB91.toInt(),
-        0xFF18FFFF.toInt(), 0xFFCE93D8.toInt(),
-        0xFF80D8FF.toInt(), 0xFFF8BBD0.toInt(),
-        0xFFFFE082.toInt(), 0xFFFFFFFF.toInt(),
-        0xFFCFD8DC.toInt(), 0xFFB39DDB.toInt(),
-        0xFFFFFFFF.toInt(), 0xFFF0ABFC.toInt()
+        "LIQUID" to "Liquid Glass 3D",
+        "NEUMORPHIC" to "Neumorphic 3D",
+        "HOLOGRAPHIC" to "Holographic 3D",
+        "METALLIC" to "Metallic 3D"
     )
 
     fun show(): LinearLayout {
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
+            setPadding(16, 18, 16, 24)
             setBackgroundColor(0xFF101827.toInt())
         }
 
-        val title = TextView(context).apply {
-            text = "TEXT STYLE GALLERY"
-            textSize = 23f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-        }
-        root.addView(title)
+        root.addView(label("APP DESIGN STUDIO"))
+        root.addView(label("चार अलग-अलग असली डिजाइन स्टाइल"))
 
-        val instruction = TextView(context).apply {
-            text = "हर नंबर के सामने असली डिजाइन का नमूना देखें"
-            textSize = 13f
-            setTextColor(0xFFB8C5D9.toInt())
-            setPadding(0, 8, 0, 16)
-        }
-        root.addView(instruction)
-
-        val grid = GridLayout(context).apply {
-            columnCount = 2
-        }
-
-        styles.forEachIndexed { index, name ->
-            val number = index + 1
-            val styleColor = colors[index]
-
+        styles.forEach { (key, name) ->
             val card = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setPadding(12, 16, 12, 16)
-
-                background = GradientDrawable().apply {
-                    setColor(0xFF202D42.toInt())
-                    cornerRadius = 22f
-                    setStroke(2, styleColor)
-                }
+                setPadding(18, 20, 18, 20)
+                background = styleDrawable(key)
+                elevation = 12f
             }
 
-            val sample = TextView(context).apply {
-                text = "मेरा हिसाब"
+            card.addView(TextView(context).apply {
+                text = "हिसाब किताब  •  ₹ 12345"
                 textSize = 21f
                 gravity = Gravity.CENTER
-                setTextColor(styleColor)
-                setTypeface(
-                    Typeface.DEFAULT,
-                    if (number % 3 == 0) Typeface.ITALIC
-                    else Typeface.BOLD
-                )
-            }
+                setTextColor(if (key == "METALLIC") Color.BLACK else Color.WHITE)
+                setTypeface(null, Typeface.BOLD)
+            })
+            card.addView(label(name))
 
-            val label = TextView(context).apply {
-                text = "No. $number  •  $name"
-                textSize = 12f
-                setTextColor(Color.WHITE)
-                gravity = Gravity.CENTER
-                setPadding(0, 10, 0, 0)
-            }
-
-            card.addView(sample)
-            card.addView(label)
+            root.addView(card, LinearLayout.LayoutParams(-1, 112).apply {
+                bottomMargin = 14
+            })
 
             card.setOnClickListener {
-                manager.saveTextStyle(number)
-                showPreview(name, number, styleColor)
+                manager.saveAppStyle(key, accent)
+                Toast.makeText(context, "$name चुना गया", Toast.LENGTH_SHORT).show()
             }
-
-            val params = GridLayout.LayoutParams().apply {
-                width = 0
-                columnSpec = GridLayout.spec(
-                    GridLayout.UNDEFINED,
-                    1f
-                )
-                setMargins(5, 5, 5, 5)
-            }
-
-            grid.addView(card, params)
         }
 
-        root.addView(grid)
+        root.addView(label("अपनी पसंद का कोई भी रंग चुनें"))
+        root.addView(Button(context).apply {
+            text = "CUSTOM COLOR / HEX"
+            isAllCaps = false
+            setOnClickListener { chooseColor() }
+        })
+
+        root.addView(Button(context).apply {
+            text = "SAVE DESIGN"
+            isAllCaps = false
+            setOnClickListener {
+                manager.saveAppStyle(manager.getAppStyle(), accent)
+                Toast.makeText(context, "डिजाइन सेव हो गया", Toast.LENGTH_SHORT).show()
+            }
+        })
+
+        root.addView(label("चुना हुआ स्टाइल: ${manager.getAppStyle()}"))
         return root
     }
 
-    private fun showPreview(
-        name: String,
-        number: Int,
-        color: Int
-    ) {
-        val preview = TextView(context).apply {
-            text = "मेरा हिसाब"
-            textSize = 30f
-            setTextColor(color)
-            gravity = Gravity.CENTER
-            setPadding(20, 30, 20, 30)
+    private fun chooseColor() {
+        val input = EditText(context).apply {
+            hint = "#38BDF8"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
         }
-
-        android.app.AlertDialog.Builder(context)
-            .setTitle("Design $number - $name")
-            .setView(preview)
-            .setNegativeButton("वापस", null)
+        AlertDialog.Builder(context)
+            .setTitle("अपना HEX रंग लिखें")
+            .setView(input)
             .setPositiveButton("Apply") { _, _ ->
-                manager.saveTextStyle(number)
-                manager.saveTextColor(color)
+                try {
+                    accent = Color.parseColor(input.text.toString().trim())
+                    manager.saveAppStyle(manager.getAppStyle(), accent)
+                    Toast.makeText(context, "रंग सेव हो गया", Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {
+                    Toast.makeText(context, "गलत HEX रंग", Toast.LENGTH_SHORT).show()
+                }
             }
+            .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun styleDrawable(style: String): GradientDrawable {
+        val colors = when (style) {
+            "NEUMORPHIC" -> intArrayOf(0xFF3A4659.toInt(), 0xFF202A3B.toInt())
+            "HOLOGRAPHIC" -> intArrayOf(
+                0xFF321B65.toInt(), accent, 0xFF00D4FF.toInt(), 0xFF6A1B9A.toInt()
+            )
+            "METALLIC" -> intArrayOf(
+                0xFFE7ECF2.toInt(), 0xFF929EAC.toInt(),
+                0xFFE8EDF4.toInt(), 0xFF596675.toInt()
+            )
+            else -> intArrayOf(
+                0xAAFFFFFF.toInt(), accent, 0xAA172438.toInt()
+            )
+        }
+        return GradientDrawable(
+            GradientDrawable.Orientation.TL_BR, colors
+        ).apply {
+            cornerRadius = when (style) {
+                "NEUMORPHIC" -> 34f
+                "METALLIC" -> 12f
+                else -> 26f
+            }
+            setStroke(
+                3,
+                when (style) {
+                    "HOLOGRAPHIC" -> accent
+                    "METALLIC" -> Color.WHITE
+                    else -> 0xCCFFFFFF.toInt()
+                }
+            )
+        }
+    }
+
+    private fun label(value: String) = TextView(context).apply {
+        text = value
+        textSize = 15f
+        setTextColor(Color.WHITE)
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(4, 10, 4, 10)
     }
 }
