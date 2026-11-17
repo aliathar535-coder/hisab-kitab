@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import android.content.ContentValues
@@ -20,7 +21,7 @@ class PaymentManager(private val db: AppDatabase) {
             put("created_at", System.currentTimeMillis())
         }
 
-        return db.writableDatabase.insert("payments", null, values)
+        return db.writableDatabase.insertOrThrow("payments", null, values)
     }
 
     fun totalReceived(): Double {
@@ -40,21 +41,36 @@ class PaymentManager(private val db: AppDatabase) {
             while (cursor.moveToNext()) {
                 result.add(
                     PaymentEntry(
-                        id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
-                        amount = cursor.getDouble(cursor.getColumnIndexOrThrow("amount")),
-                        note = cursor.getString(cursor.getColumnIndexOrThrow("note")),
-                        createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
+                        cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+                        cursor.getDouble(cursor.getColumnIndexOrThrow("amount")),
+                        cursor.getString(cursor.getColumnIndexOrThrow("note")),
+                        cursor.getLong(cursor.getColumnIndexOrThrow("created_at"))
                     )
                 )
             }
         }
-
         return result
     }
 
-    fun deletePayment(id: Long): Boolean {
-        return db.writableDatabase.delete(
-            "payments", "id=?", arrayOf(id.toString())
+    fun updatePayment(
+        id: Long,
+        amount: Double,
+        note: String? = null
+    ): Boolean {
+        require(amount > 0)
+
+        val values = ContentValues().apply {
+            put("amount", amount)
+            put("note", note)
+        }
+
+        return db.writableDatabase.update(
+            "payments", values, "id=?", arrayOf(id.toString())
         ) > 0
     }
+
+    fun deletePayment(id: Long): Boolean =
+        db.writableDatabase.delete(
+            "payments", "id=?", arrayOf(id.toString())
+        ) > 0
 }
