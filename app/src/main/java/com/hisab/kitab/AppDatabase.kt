@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 class AppDatabase(context: Context) :
-    SQLiteOpenHelper(context, "hisab_kitab.db", null, 2) {
+    SQLiteOpenHelper(context, "hisab_kitab.db", null, 3) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
@@ -40,6 +40,7 @@ class AppDatabase(context: Context) :
         """.trimIndent())
 
         createCalculatorHistory(db)
+        createAuditHistory(db)
     }
 
     private fun createCalculatorHistory(db: SQLiteDatabase) {
@@ -53,6 +54,24 @@ class AppDatabase(context: Context) :
         """.trimIndent())
     }
 
+    private fun createAuditHistory(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS audit_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_type TEXT NOT NULL,
+                item_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                description TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE INDEX IF NOT EXISTS idx_audit_created
+            ON audit_history(created_at)
+        """.trimIndent())
+    }
+
     override fun onUpgrade(
         db: SQLiteDatabase,
         oldVersion: Int,
@@ -60,6 +79,10 @@ class AppDatabase(context: Context) :
     ) {
         if (oldVersion < 2) {
             createCalculatorHistory(db)
+        }
+
+        if (oldVersion < 3) {
+            createAuditHistory(db)
         }
     }
 }
