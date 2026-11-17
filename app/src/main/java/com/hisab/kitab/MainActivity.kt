@@ -26,6 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var db: AppDatabase
     private lateinit var galleryLauncher: ActivityResultLauncher<String>
     private lateinit var cameraLauncher: ActivityResultLauncher<Uri>
+    private lateinit var backupCreateLauncher: ActivityResultLauncher<String>
+    private lateinit var backupOpenLauncher: ActivityResultLauncher<Array<String>>
 
     private var cameraUri: Uri? = null
     private var selectedPhotoPath: String? = null
@@ -49,11 +51,20 @@ class MainActivity : AppCompatActivity() {
             ActivityResultContracts.TakePicture()
         ) { success ->
             val uri = cameraUri
-            if (success && uri != null) {
-                saveSelectedPhoto(uri)
-            } else {
-                showMessage("फोटो नहीं लिया जा सका।")
-            }
+            if (success && uri != null) saveSelectedPhoto(uri)
+            else showMessage("फोटो नहीं लिया जा सका।")
+        }
+
+        backupCreateLauncher = registerForActivityResult(
+            ActivityResultContracts.CreateDocument("application/zip")
+        ) { uri ->
+            if (uri != null) exportBackup(uri)
+        }
+
+        backupOpenLauncher = registerForActivityResult(
+            ActivityResultContracts.OpenDocument()
+        ) { uri ->
+            if (uri != null) restoreBackup(uri)
         }
 
         showHome()
@@ -129,28 +140,148 @@ class MainActivity : AppCompatActivity() {
         addButton(content, "खर्च हिस्ट्री देखें") { showExpenseHistory() }
         addButton(content, "पीस हिस्ट्री / Edit / Delete") { showHistory() }
 
+        addButton(content, "📅 कैलेंडर") {
+            showCustomScreen("कैलेंडर", CalendarScreen(this).show())
+        }
+
+        addButton(content, "📊 रिपोर्ट / PDF") {
+            createAndShareReport()
+        }
+
+        addButton(content, "🖼️ फोटो गैलरी") {
+            showGallery()
+        }
+
+        addButton(content, "🔎 हिसाब में सर्च करें") {
+            showCustomScreen("सर्च", SearchScreen(this, db).show())
+        }
+
+        addButton(content, "💾 बैकअप बनाएं") {
+            backupCreateLauncher.launch(
+                "HISAB_KITAB_BACKUP_${System.currentTimeMillis()}.zip"
+            )
+        }
+
+        addButton(content, "♻️ बैकअप रिस्टोर करें") {
+            AlertDialog.Builder(this)
+                .setTitle("बैकअप रिस्टोर करें?")
+                .setMessage(
+                    "चुनी हुई बैकअप फाइल से मौजूदा हिसाब बदल जाएगा। " +
+                    "पहले अपना नया बैकअप बना लें।"
+                )
+                .setNegativeButton("रद्द", null)
+                .setPositiveButton("आगे बढ़ें") { _, _ ->
+                    backupOpenLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+                }
+                .show()
+        }
+
         addButton(content, "🎨 BOX DESIGN STUDIO") {
             showCustomScreen("डिजाइन स्टूडियो", DesignStudio(this).show())
         }
+
         addButton(content, "🔤 FONT STUDIO") {
             showCustomScreen("टेक्स्ट डिजाइन", FontStudio(this).show())
         }
+
         addButton(content, "⚙️ SETTINGS") {
             showCustomScreen(
                 "सेटिंग",
                 SettingsScreen(
                     this,
-                    onLanguageChanged = {
-                        recreate()
-                    },
-                    onBack = {
-                        showHome()
-                    }
+                    onLanguageChanged = { recreate() },
+                    onBack = { showHome() }
                 ).show()
             )
         }
 
         setContentView(root)
+    }
+
+    private fun createAndShareReport() {
+        try {
+            val file = ReportManager(this).createPdf()
+            if (file == null || !file.exists()) {
+                showMessage("PDF रिपोर्ट नहीं बन सकी।")
+                return
+            }
+
+            val uri = FileProvider.getUriForFile(
+                this,
+                "${BuildConfig.APPLICATION_ID}.fileprovider",
+                file
+            )
+
+            val intent = android.content.Intent(
+                android.content.Intent.ACTION_SEND
+            ).apply {
+                type = "application/pdf"
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            startActivity(
+                android.content.Intent.createChooser(intent, "PDF रिपोर्ट शेयर करें")
+            )
+        } catch (e: Exception) {
+            showMessage("रिपोर्ट शेयर नहीं हुई: ${e.message}")
+        }
+    }
+
+    private fun exportBackup(uri: Uri) {
+        try {
+            val file = BackupManager(this).createBackup()
+            if (file == null || !file.exists()) {
+                showMessage("बैकअप फाइल नहीं बन सकी।")
+                return
+            }
+
+            contentResolver.openOutputStream(uri)?.use { output ->
+                file.inputStream().use { input ->
+                    input.copyTo(output)
+                }
+            } ?: throw Exception("फाइल सेव नहीं हो सकी")
+
+            showMessage("बैकअप सफलतापूर्वक सेव हो गया।")
+        } catch (e: Exception) {
+            showMessage("बैकअप में समस्या: ${e.message}")
+        }
+    }
+
+    private fun restoreBackup(uri: Uri) {
+        AlertDialog.Builder(this)
+            .setTitle("आखिरी पुष्टि")
+            .setMessage(
+                "क्या आप सच में इस बैकअप को रिस्टोर करना चाहते हैं? " +
+                "मौजूदा हिसाब बदल जाएगा।"
+            )
+            .setNegativeButton("नहीं", null)
+            .setPositiveButton("हाँ, रिस्टोर करें") { _, _ ->
+                try {
+                    db.close()
+                    val success = BackupManager(this).restoreBackup(uri)
+                    db = AppDatabase(this)
+
+                    if (success) {
+                        showMessage("बैकअप रिस्टोर हो गया।")
+                        showHome()
+                    } else {
+                        showMessage("बैकअप रिस्टोर नहीं हो सका।")
+                    }
+                } catch (e: Exception) {
+                    db = AppDatabase(this)
+                    showMessage("रिस्टोर में समस्या: ${e.message}")
+                }
+            }
+            .show()
+    }
+
+    private fun showGallery() {
+        val view = GalleryScreen(this) { path ->
+            showFullPhoto(path)
+        }.show()
+
+        showCustomScreen("फोटो गैलरी", view)
     }
 
     private fun showCustomScreen(title: String, view: View) {
@@ -278,13 +409,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun openCamera() {
         try {
-            val folder = File(cacheDir, "camera").apply {
-                mkdirs()
-            }
-            val file = File(
-                folder,
-                "camera_${System.currentTimeMillis()}.jpg"
-            )
+            val folder = File(cacheDir, "camera").apply { mkdirs() }
+            val file = File(folder, "camera_${System.currentTimeMillis()}.jpg")
 
             cameraUri = FileProvider.getUriForFile(
                 this,
@@ -321,7 +447,7 @@ class MainActivity : AppCompatActivity() {
             showMessage("फोटो सेव करने में समस्या हुई।")
         }
     }
-
+    
     private fun showFullPhoto(path: String) {
         val bitmap = PhotoManager(this).loadPhoto(path, 2400, 2400)
         if (bitmap == null) {
@@ -421,9 +547,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         val window = dialog.window ?: return
-        window.setBackgroundDrawableResource(
-            android.R.color.transparent
-        )
+        window.setBackgroundDrawableResource(android.R.color.transparent)
         window.setLayout(
             (resources.displayMetrics.widthPixels * 0.94f).toInt(),
             -2
@@ -468,7 +592,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    
     private fun showPayment() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -535,11 +658,7 @@ class MainActivity : AppCompatActivity() {
                             "तारीख: ${date(item.createdAt)}"
                     )
                     .setNeutralButton("Edit") { _, _ ->
-                        editPayment(
-                            item.id,
-                            item.amount,
-                            item.note
-                        )
+                        editPayment(item.id, item.amount, item.note)
                     }
                     .setNegativeButton("Delete") { _, _ ->
                         confirmDelete(
@@ -667,11 +786,7 @@ class MainActivity : AppCompatActivity() {
                             "तारीख: ${date(item.createdAt)}"
                     )
                     .setNeutralButton("Edit") { _, _ ->
-                        editExpense(
-                            item.id,
-                            item.title,
-                            item.amount
-                        )
+                        editExpense(item.id, item.title, item.amount)
                     }
                     .setNegativeButton("Delete") { _, _ ->
                         confirmDelete(
@@ -900,10 +1015,7 @@ class MainActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL
 
             if (bold) {
-                setTypeface(
-                    null,
-                    android.graphics.Typeface.BOLD
-                )
+                setTypeface(null, android.graphics.Typeface.BOLD)
             }
 
             setPadding(4, 8, 4, 8)
