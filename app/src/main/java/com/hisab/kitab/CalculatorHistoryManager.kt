@@ -1,66 +1,88 @@
 
 package com.hisab.kitab
 
+import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-class AppDatabase(context: Context) :
-    SQLiteOpenHelper(context, "hisab_kitab.db", null, 2) {
-
-    override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("""
-            CREATE TABLE production (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                rate REAL NOT NULL,
-                total REAL NOT NULL,
-                photo TEXT,
-                created_at INTEGER NOT NULL
-            )
-        """.trimIndent())
-
-        db.execSQL("""
-            CREATE TABLE payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                amount REAL NOT NULL,
-                note TEXT,
-                created_at INTEGER NOT NULL
-            )
-        """.trimIndent())
-
-        db.execSQL("""
-            CREATE TABLE expenses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                amount REAL NOT NULL,
-                created_at INTEGER NOT NULL
-            )
-        """.trimIndent())
-
-        createCalculatorHistory(db)
+data class CalculatorHistoryItem(
+    val id: Long,
+    val expression: String,
+    val result: String,
+    val createdAt: Long
+) {
+    fun dateText(): String {
+        return SimpleDateFormat(
+            "dd-MM-yyyy  hh:mm a",
+            Locale.getDefault()
+        ).format(Date(createdAt))
     }
+}
 
-    private fun createCalculatorHistory(db: SQLiteDatabase) {
-        db.execSQL("""
-            CREATE TABLE IF NOT EXISTS calculator_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                expression TEXT NOT NULL,
-                result TEXT NOT NULL,
-                created_at INTEGER NOT NULL
-            )
-        """.trimIndent())
-    }
+class CalculatorHistoryManager(context: Context) {
 
-    override fun onUpgrade(
-        db: SQLiteDatabase,
-        oldVersion: Int,
-        newVersion: Int
-    ) {
-        if (oldVersion < 2) {
-            createCalculatorHistory(db)
+    private val db = AppDatabase(context)
+
+    fun save(expression: String, result: String): Long {
+        if (expression.isBlank() || result.isBlank()) return -1L
+
+        val values = ContentValues().apply {
+            put("expression", expression)
+            put("result", result)
+            put("created_at", System.currentTimeMillis())
         }
+
+        return db.writableDatabase.insert(
+            "calculator_history",
+            null,
+            values
+        )
     }
+
+    fun getAll(): List<CalculatorHistoryItem> {
+        val items = mutableListOf<CalculatorHistoryItem>()
+
+        val cursor = db.readableDatabase.rawQuery(
+            "SELECT id, expression, result, created_at " +
+                "FROM calculator_history ORDER BY id DESC",
+            null
+        )
+
+        cursor.use {
+            while (it.moveToNext()) {
+                items.add(
+                    CalculatorHistoryItem(
+                        id = it.getLong(0),
+                        expression = it.getString(1),
+                        result = it.getString(2),
+                        createdAt = it.getLong(3)
+                    )
+                )
+            }
+        }
+
+        return items
     }
-    
+
+    fun delete(id: Long): Boolean {
+        return db.writableDatabase.delete(
+            "calculator_history",
+            "id = ?",
+            arrayOf(id.toString())
+        ) > 0
+    }
+
+    fun clearAll() {
+        db.writableDatabase.delete(
+            "calculator_history",
+            null,
+            null
+        )
+    }
+
+    fun close() {
+        db.close()
+    }
+}
