@@ -24,6 +24,7 @@ class ProductionManager(private val db: AppDatabase) {
     ): Long {
         require(name.isNotBlank() && quantity > 0 && rate >= 0)
 
+        val database = db.writableDatabase
         val values = ContentValues().apply {
             put("name", name.trim())
             put("quantity", quantity)
@@ -33,7 +34,18 @@ class ProductionManager(private val db: AppDatabase) {
             put("created_at", System.currentTimeMillis())
         }
 
-        return db.writableDatabase.insertOrThrow("production", null, values)
+        database.beginTransaction()
+        try {
+            val id = database.insertOrThrow("production", null, values)
+            addAudit(
+                database, id, "ADD",
+                "पीस जोड़ा: ${name.trim()}, मात्रा $quantity, रेट $rate, कुल ${quantity * rate}"
+            )
+            database.setTransactionSuccessful()
+            return id
+        } finally {
+            database.endTransaction()
+        }
     }
 
     fun getAllEntries(): List<ProductionEntry> {
@@ -82,6 +94,7 @@ class ProductionManager(private val db: AppDatabase) {
     ): Boolean {
         require(name.isNotBlank() && quantity > 0 && rate >= 0)
 
+        val database = db.writableDatabase
         val values = ContentValues().apply {
             put("name", name.trim())
             put("quantity", quantity)
@@ -90,12 +103,25 @@ class ProductionManager(private val db: AppDatabase) {
             put("photo", photo)
         }
 
-        return db.writableDatabase.update(
-            "production",
-            values,
-            "id=?",
-            arrayOf(id.toString())
-        ) > 0
+        database.beginTransaction()
+        try {
+            val changed = database.update(
+                "production", values, "id=?",
+                arrayOf(id.toString())
+            ) > 0
+
+            if (changed) {
+                addAudit(
+                    database, id, "EDIT",
+                    "पीस बदला: ${name.trim()}, मात्रा $quantity, रेट $rate, कुल ${quantity * rate}"
+                )
+            }
+
+            database.setTransactionSuccessful()
+            return changed
+        } finally {
+            database.endTransaction()
+        }
     }
 
     fun updateDetails(
@@ -106,6 +132,7 @@ class ProductionManager(private val db: AppDatabase) {
     ): Boolean {
         require(name.isNotBlank() && quantity > 0 && rate >= 0)
 
+        val database = db.writableDatabase
         val values = ContentValues().apply {
             put("name", name.trim())
             put("quantity", quantity)
@@ -113,24 +140,86 @@ class ProductionManager(private val db: AppDatabase) {
             put("total", quantity * rate)
         }
 
-        return db.writableDatabase.update(
-            "production", values, "id=?", arrayOf(id.toString())
-        ) > 0
+        database.beginTransaction()
+        try {
+            val changed = database.update(
+                "production", values, "id=?",
+                arrayOf(id.toString())
+            ) > 0
+
+            if (changed) {
+                addAudit(
+                    database, id, "EDIT",
+                    "पीस विवरण बदला: ${name.trim()}, मात्रा $quantity, रेट $rate"
+                )
+            }
+
+            database.setTransactionSuccessful()
+            return changed
+        } finally {
+            database.endTransaction()
+        }
     }
 
     fun updatePhoto(id: Long, photo: String?): Boolean {
+        val database = db.writableDatabase
         val values = ContentValues().apply {
             put("photo", photo)
         }
-        return db.writableDatabase.update(
-            "production", values, "id=?", arrayOf(id.toString())
+
+        val changed = database.update(
+            "production", values, "id=?",
+            arrayOf(id.toString())
         ) > 0
+
+        if (changed) {
+            addAudit(
+                database, id, "PHOTO",
+                if (photo.isNullOrBlank()) "पीस की फोटो हटाई" else "पीस की फोटो बदली"
+            )
+        }
+        return changed
     }
 
-    fun deleteEntry(id: Long): Boolean =
-        db.writableDatabase.delete(
-            "production", "id=?", arrayOf(id.toString())
-        ) > 0
+    fun deleteEntry(id: Long): Boolean {
+        val database = db.writableDatabase
+        val old = getEntry(id) ?: return false
+
+        database.beginTransaction()
+        try {
+            val deleted = database.delete(
+                "production", "id=?", arrayOf(id.toString())
+            ) > 0
+
+            if (deleted) {
+                addAudit(
+                    database, id, "DELETE",
+                    "पीस हटाया: ${old.name}, मात्रा ${old.quantity}, कुल ${old.total}"
+                )
+            }
+
+            database.setTransactionSuccessful()
+            return deleted
+        } finally {
+            database.endTransaction()
+        }
+    }
+
+    private fun addAudit(
+        database: android.database.sqlite.SQLiteDatabase,
+        id: Long,
+        action: String,
+        description: String
+    ) {
+        val values = ContentValues().apply {
+            put("item_type", "PRODUCTION")
+            put("item_id", id)
+            put("action", action)
+            put("description", description)
+            put("created_at", System.currentTimeMillis())
+        }
+        database.insert("audit_history", null, values)
+    }
 
     private fun Cursor.toEntry() = ProductionEntry(
         id = getLong(getColumnIndexOrThrow("id")),
