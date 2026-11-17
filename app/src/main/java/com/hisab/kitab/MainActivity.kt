@@ -1,10 +1,11 @@
-
 package com.hisab.kitab
 
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -33,7 +34,20 @@ class MainActivity : AppCompatActivity() {
     private var selectedPhotoPath: String? = null
     private var photoPreviewTarget: ImageView? = null
     private var photoStatusTarget: TextView? = null
-    private var drawerOpen = false
+    private var homeVisible = true
+
+    private val clockHandler = Handler(Looper.getMainLooper())
+    private var clockView: TextView? = null
+
+    private val clockRunnable = object : Runnable {
+        override fun run() {
+            clockView?.text = SimpleDateFormat(
+                "EEEE, dd MMM yyyy  |  hh:mm:ss a",
+                Locale.getDefault()
+            ).format(Date())
+            clockHandler.postDelayed(this, 1000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,49 +82,55 @@ class MainActivity : AppCompatActivity() {
                 if (uri != null) restoreBackup(uri)
             }
 
-            showHome()
-
             onBackPressedDispatcher.addCallback(
                 this,
                 object : OnBackPressedCallback(true) {
                     override fun handleOnBackPressed() {
-                        if (drawerOpen) {
-                            drawerOpen = false
+                        if (!homeVisible) {
                             showHome()
                         } else {
                             AlertDialog.Builder(this@MainActivity)
                                 .setTitle("ऐप बंद करें?")
                                 .setMessage("क्या आप HISAB-KITAB बंद करना चाहते हैं?")
                                 .setNegativeButton("नहीं", null)
-                                .setPositiveButton("हाँ") { _, _ -> finish() }
+                                .setPositiveButton("हाँ") { _, _ ->
+                                    finish()
+                                }
                                 .show()
                         }
                     }
                 }
             )
+
+            showHome()
+
         } catch (e: Exception) {
             showStartupError(e)
         }
     }
 
-    private fun showStartupError(error: Exception) {
-        val details = error.stackTraceToString()
+    override fun onDestroy() {
+        clockHandler.removeCallbacks(clockRunnable)
+        clockView = null
+        super.onDestroy()
+    }
 
+    private fun showStartupError(error: Exception) {
         val message = TextView(this).apply {
             text = "HISAB-KITAB STARTUP ERROR\n\n" +
                 error.javaClass.name + "\n\n" +
                 (error.message ?: "कोई अतिरिक्त जानकारी नहीं") +
-                "\n\nपूरा विवरण:\n" + details
+                "\n\n" + error.stackTraceToString()
             textSize = 14f
             setTextColor(android.graphics.Color.WHITE)
             setPadding(24, 24, 24, 24)
             setTextIsSelectable(true)
         }
 
-        val scroll = ScrollView(this)
-        scroll.setBackgroundColor(0xFF101827.toInt())
-        scroll.addView(message)
-        setContentView(scroll)
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(0xFF101827.toInt())
+            addView(message)
+        })
     }
 
     private fun baseLayout(): LinearLayout =
@@ -121,7 +141,8 @@ class MainActivity : AppCompatActivity() {
         }
 
     private fun showHome() {
-        drawerOpen = false
+        homeVisible = true
+        clockHandler.removeCallbacks(clockRunnable)
 
         val root = baseLayout()
         val scroll = ScrollView(this)
@@ -135,17 +156,53 @@ class MainActivity : AppCompatActivity() {
         content.addView(text("HISAB-KITAB", 28f, WHITE, true))
         content.addView(text("आपके काम का पूरा हिसाब", 14f, MUTED))
 
+        clockView = text("", 13f, 0xFF38BDF8.toInt())
+        content.addView(clockView)
+        clockHandler.post(clockRunnable)
+
         val summary = HistoryManager(db).getSummary()
 
         content.addView(space())
-        content.addView(summaryCard("कुल पीस", summary.totalPieces.toString(), "total_pieces"))
-        content.addView(summaryCard("कुल कमाई", money(summary.totalIncome), "total_income"))
-        content.addView(summaryCard("मिली हुई रकम", money(summary.received), "received"))
-        content.addView(summaryCard("कुल खर्च", money(summary.expenses), "expenses"))
-        content.addView(summaryCard("बाकी रकम", money(summary.remaining), "remaining"))
+
+        content.addView(
+            summaryCard(
+                "कुल पीस",
+                summary.totalPieces.toString(),
+                "total_pieces"
+            )
+        )
+        content.addView(
+            summaryCard(
+                "कुल कमाई",
+                money(summary.totalIncome),
+                "total_income"
+            )
+        )
+        content.addView(
+            summaryCard(
+                "मिली हुई रकम",
+                money(summary.received),
+                "received"
+            )
+        )
+        content.addView(
+            summaryCard(
+                "कुल खर्च",
+                money(summary.expenses),
+                "expenses"
+            )
+        )
+        content.addView(
+            summaryCard(
+                "बाकी रकम",
+                money(summary.remaining),
+                "remaining"
+            )
+        )
 
         val profitTitle =
-            if (summary.profit >= 0) "कुल मुनाफा" else "कुल नुकसान"
+            if (summary.profit >= 0) "कुल मुनाफा"
+            else "कुल नुकसान"
 
         content.addView(
             summaryCard(
@@ -156,36 +213,45 @@ class MainActivity : AppCompatActivity() {
         )
 
         content.addView(space())
-        addButton(content, "🧮 SMART CALCULATOR") { showCalculator() }
-        addButton(content, "＋ नया पीस जोड़ें") { showAddPiece() }
-        addButton(content, "₹ पेमेंट जोड़ें") { showPayment() }
-        addButton(content, "पेमेंट हिस्ट्री देखें") { showPaymentHistory() }
-        addButton(content, "खर्च जोड़ें") { showExpense() }
-        addButton(content, "खर्च हिस्ट्री देखें") { showExpenseHistory() }
-        addButton(content, "पीस हिस्ट्री / Edit / Delete") { showHistory() }
 
+        addButton(content, "🧮 SMART CALCULATOR") {
+            showCalculator()
+        }
+        addButton(content, "＋ नया पीस जोड़ें") {
+            showAddPiece()
+        }
+        addButton(content, "₹ पेमेंट जोड़ें") {
+            showPayment()
+        }
+        addButton(content, "पेमेंट हिस्ट्री देखें") {
+            showPaymentHistory()
+        }
+        addButton(content, "खर्च जोड़ें") {
+            showExpense()
+        }
+        addButton(content, "खर्च हिस्ट्री देखें") {
+            showExpenseHistory()
+        }
+        addButton(content, "पीस हिस्ट्री / Edit / Delete") {
+            showHistory()
+        }
         addButton(content, "📅 कैलेंडर") {
             showCustomScreen("कैलेंडर", CalendarScreen(this).show())
         }
-
         addButton(content, "📊 रिपोर्ट / PDF") {
             createAndShareReport()
         }
-
         addButton(content, "🖼️ फोटो गैलरी") {
             showGallery()
         }
-
         addButton(content, "🔎 हिसाब में सर्च करें") {
             showCustomScreen("सर्च", SearchScreen(this, db).show())
         }
-
         addButton(content, "💾 बैकअप बनाएं") {
             backupCreateLauncher.launch(
                 "HISAB_KITAB_BACKUP_${System.currentTimeMillis()}.zip"
             )
         }
-
         addButton(content, "♻️ बैकअप रिस्टोर करें") {
             AlertDialog.Builder(this)
                 .setTitle("बैकअप रिस्टोर करें?")
@@ -195,19 +261,18 @@ class MainActivity : AppCompatActivity() {
                 )
                 .setNegativeButton("रद्द", null)
                 .setPositiveButton("आगे बढ़ें") { _, _ ->
-                    backupOpenLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+                    backupOpenLauncher.launch(
+                        arrayOf("application/zip", "application/octet-stream")
+                    )
                 }
                 .show()
         }
-
         addButton(content, "🎨 BOX DESIGN STUDIO") {
             showCustomScreen("डिजाइन स्टूडियो", DesignStudio(this).show())
         }
-
         addButton(content, "🔤 FONT STUDIO") {
-            showCustomScreen("टेक्स्ट डिजाइन", FontStudio(this).show())
+            showCustomScreen("Font Studio", FontStudio(this).show())
         }
-
         addButton(content, "⚙️ SETTINGS") {
             showCustomScreen(
                 "सेटिंग",
@@ -220,6 +285,40 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(root)
+    }
+
+    private fun summaryCard(
+        title: String,
+        value: String,
+        boxId: String
+    ): View {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(18, 16, 18, 16)
+            isClickable = true
+            isFocusable = true
+        }
+
+        card.addView(text(title, 14f, MUTED))
+        card.addView(text(value, 23f, WHITE, true))
+
+        card.layoutParams =
+            LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = 12
+            }
+
+        DesignManager(this).applyTo(card, boxId)
+
+        card.setOnClickListener {
+            when (boxId) {
+                "total_pieces", "total_income", "profit" -> showHistory()
+                "received" -> showPaymentHistory()
+                "expenses" -> showExpenseHistory()
+                "remaining" -> showPaymentHistory()
+            }
+        }
+
+        return card
     }
 
     private fun createAndShareReport() {
@@ -241,11 +340,16 @@ class MainActivity : AppCompatActivity() {
             ).apply {
                 type = "application/pdf"
                 putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
             }
 
             startActivity(
-                android.content.Intent.createChooser(intent, "PDF रिपोर्ट शेयर करें")
+                android.content.Intent.createChooser(
+                    intent,
+                    "PDF रिपोर्ट शेयर करें"
+                )
             )
         } catch (e: Exception) {
             showMessage("रिपोर्ट शेयर नहीं हुई: ${e.message}")
@@ -309,14 +413,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCustomScreen(title: String, view: View) {
+        homeVisible = false
+
         val scroll = ScrollView(this)
         scroll.addView(view)
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(title)
             .setView(scroll)
             .setPositiveButton("बंद", null)
-            .show()
+            .create()
+
+        dialog.setOnDismissListener {
+            homeVisible = true
+        }
+        dialog.show()
     }
 
     private fun showAddPiece() {
@@ -338,6 +449,36 @@ class MainActivity : AppCompatActivity() {
             hint = "एक पीस का रेट"
             inputType = 8194
         }
+        val totalPreview = TextView(this).apply {
+            text = "कुल रकम: ₹0.00"
+            textSize = 18f
+            setTextColor(0xFF0EA5E9.toInt())
+            setPadding(4, 12, 4, 12)
+        }
+
+        fun updateTotal() {
+            val q = quantity.text.toString().toDoubleOrNull() ?: 0.0
+            val r = rate.text.toString().toDoubleOrNull() ?: 0.0
+            totalPreview.text = "कुल रकम: ${money(q * r)}"
+        }
+
+        val watcher = object : android.text.TextWatcher {
+            override fun beforeTextChanged(
+                s: CharSequence?, start: Int, count: Int, after: Int
+            ) {}
+
+            override fun onTextChanged(
+                s: CharSequence?, start: Int, before: Int, count: Int
+            ) {
+                updateTotal()
+            }
+
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        }
+
+        quantity.addTextChangedListener(watcher)
+        rate.addTextChangedListener(watcher)
+
         val preview = ImageView(this).apply {
             visibility = View.GONE
             adjustViewBounds = true
@@ -347,6 +488,7 @@ class MainActivity : AppCompatActivity() {
                 selectedPhotoPath?.let { showFullPhoto(it) }
             }
         }
+
         val status = text("अभी कोई फोटो नहीं चुना गया", 13f, MUTED)
 
         val photoButton = Button(this).apply {
@@ -360,6 +502,7 @@ class MainActivity : AppCompatActivity() {
         box.addView(name)
         box.addView(quantity)
         box.addView(rate)
+        box.addView(totalPreview)
         box.addView(space())
         box.addView(photoButton)
         box.addView(status)
@@ -404,6 +547,7 @@ class MainActivity : AppCompatActivity() {
             photoPreviewTarget = null
             photoStatusTarget = null
         }
+
         dialog.show()
     }
 
@@ -434,13 +578,17 @@ class MainActivity : AppCompatActivity() {
     private fun openCamera() {
         try {
             val folder = File(cacheDir, "camera").apply { mkdirs() }
-            val file = File(folder, "camera_${System.currentTimeMillis()}.jpg")
+            val file = File(
+                folder,
+                "camera_${System.currentTimeMillis()}.jpg"
+            )
 
             cameraUri = FileProvider.getUriForFile(
                 this,
                 "${BuildConfig.APPLICATION_ID}.fileprovider",
                 file
             )
+
             cameraLauncher.launch(cameraUri!!)
         } catch (e: Exception) {
             showMessage("कैमरा खोलने में समस्या हुई: ${e.message}")
@@ -468,10 +616,10 @@ class MainActivity : AppCompatActivity() {
             photoStatusTarget?.text =
                 "✓ फोटो तैयार है। देखने के लिए फोटो पर दबाएँ।"
         } catch (e: Exception) {
-            showMessage("फोटो सेव करने में समस्या हुई।")
+            showMessage("फोटो सेव करने में समस्या हुई: ${e.message}")
         }
     }
-    
+
     private fun showFullPhoto(path: String) {
         val bitmap = PhotoManager(this).loadPhoto(path, 2400, 2400)
         if (bitmap == null) {
@@ -545,7 +693,6 @@ class MainActivity : AppCompatActivity() {
                                     event.y - lastY
                                 )
                                 imageMatrix = matrixValue
-                                
                             }
                             lastX = event.x
                             lastY = event.y
@@ -558,19 +705,40 @@ class MainActivity : AppCompatActivity() {
 
         override fun setImageBitmap(bm: Bitmap?) {
             super.setImageBitmap(bm)
-            matrixValue.reset()
-            scale = 1f
-            imageMatrix = matrixValue
-        }
-    }
+            post {
+                matrixValue.reset()
+                scale = 1f
+                val drawable = drawable ?: return@post
+                val viewWidth = width.toFloat()
+                val viewHeight = height.toFloat()
+                if (viewWidth <= 0f || viewHeight <= 0f) return@post
 
-    private fun showCalculator() {
+                val fit = minOf(
+                    viewWidth / drawable.intrinsicWidth,
+                    viewHeight / drawable.intrinsicHeight
+                )
+                matrixValue.setScale(fit, fit)
+                val dx = (viewWidth - drawable.intrinsicWidth * fit) / 2f
+                val dy = (viewHeight - drawable.intrinsicHeight * fit) / 2f
+                matrixValue.postTranslate(dx, dy)
+                imageMatrix = matrixValue
+            }
+        }
+        }
+            private fun showCalculator() {
+        homeVisible = false
+
         val calculatorView = CalculatorScreen(this).show()
         val dialog = AlertDialog.Builder(this)
             .setView(calculatorView)
             .create()
 
+        dialog.setOnDismissListener {
+            homeVisible = true
+        }
+
         dialog.show()
+
         val window = dialog.window ?: return
         window.setBackgroundDrawableResource(android.R.color.transparent)
         window.setLayout(
@@ -601,17 +769,22 @@ class MainActivity : AppCompatActivity() {
                     initialY = window.attributes.y
                     true
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     val updated = window.attributes
+
                     updated.x =
                         (initialX + event.rawX - startX)
                             .toInt().coerceAtLeast(0)
+
                     updated.y =
                         (initialY + event.rawY - startY)
                             .toInt().coerceAtLeast(0)
+
                     window.attributes = updated
                     true
                 }
+
                 else -> false
             }
         }
@@ -627,6 +800,7 @@ class MainActivity : AppCompatActivity() {
             hint = "मिली हुई रकम"
             inputType = 8194
         }
+
         val note = EditText(this).apply {
             hint = "विवरण (जैसे एडवांस / बाकी पेमेंट)"
         }
@@ -643,11 +817,15 @@ class MainActivity : AppCompatActivity() {
                     amount.text.toString().toDoubleOrNull() ?: 0.0
 
                 if (value > 0) {
-                    PaymentManager(db).addPayment(
-                        value,
-                        note.text.toString()
-                    )
-                    showHome()
+                    try {
+                        PaymentManager(db).addPayment(
+                            value,
+                            note.text.toString()
+                        )
+                        showHome()
+                    } catch (e: Exception) {
+                        showMessage("पेमेंट सेव नहीं हुआ: ${e.message}")
+                    }
                 } else {
                     showMessage("सही रकम लिखें।")
                 }
@@ -716,6 +894,7 @@ class MainActivity : AppCompatActivity() {
             inputType = 8194
             setText(oldAmount.toString())
         }
+
         val note = EditText(this).apply {
             hint = "विवरण"
             setText(oldNote.orEmpty())
@@ -733,12 +912,16 @@ class MainActivity : AppCompatActivity() {
                     amount.text.toString().toDoubleOrNull() ?: 0.0
 
                 if (value > 0) {
-                    PaymentManager(db).updatePayment(
-                        id,
-                        value,
-                        note.text.toString()
-                    )
-                    showHome()
+                    try {
+                        PaymentManager(db).updatePayment(
+                            id,
+                            value,
+                            note.text.toString()
+                        )
+                        showHome()
+                    } catch (e: Exception) {
+                        showMessage("पेमेंट अपडेट नहीं हुआ: ${e.message}")
+                    }
                 } else {
                     showMessage("सही रकम लिखें।")
                 }
@@ -755,6 +938,7 @@ class MainActivity : AppCompatActivity() {
         val title = EditText(this).apply {
             hint = "खर्च का नाम"
         }
+
         val amount = EditText(this).apply {
             hint = "खर्च की रकम"
             inputType = 8194
@@ -772,11 +956,15 @@ class MainActivity : AppCompatActivity() {
                     amount.text.toString().toDoubleOrNull() ?: 0.0
 
                 if (title.text.isNotBlank() && value > 0) {
-                    ExpenseManager(db).addExpense(
-                        title.text.toString(),
-                        value
-                    )
-                    showHome()
+                    try {
+                        ExpenseManager(db).addExpense(
+                            title.text.toString(),
+                            value
+                        )
+                        showHome()
+                    } catch (e: Exception) {
+                        showMessage("खर्च सेव नहीं हुआ: ${e.message}")
+                    }
                 } else {
                     showMessage("खर्च का नाम और सही रकम लिखें।")
                 }
@@ -843,6 +1031,7 @@ class MainActivity : AppCompatActivity() {
             hint = "खर्च का नाम"
             setText(oldTitle)
         }
+
         val amount = EditText(this).apply {
             hint = "रकम"
             inputType = 8194
@@ -861,12 +1050,16 @@ class MainActivity : AppCompatActivity() {
                     amount.text.toString().toDoubleOrNull() ?: 0.0
 
                 if (title.text.isNotBlank() && value > 0) {
-                    ExpenseManager(db).updateExpense(
-                        id,
-                        title.text.toString(),
-                        value
-                    )
-                    showHome()
+                    try {
+                        ExpenseManager(db).updateExpense(
+                            id,
+                            title.text.toString(),
+                            value
+                        )
+                        showHome()
+                    } catch (e: Exception) {
+                        showMessage("खर्च अपडेट नहीं हुआ: ${e.message}")
+                    }
                 } else {
                     showMessage("सही नाम और रकम लिखें।")
                 }
@@ -921,6 +1114,7 @@ class MainActivity : AppCompatActivity() {
             .setItems(actions) { _, which ->
                 when (actions[which]) {
                     "Edit" -> editProduction(item)
+
                     "फोटो देखें" ->
                         item.photo?.let { showFullPhoto(it) }
 
@@ -950,11 +1144,13 @@ class MainActivity : AppCompatActivity() {
             hint = "पीस का नाम"
             setText(item.name)
         }
+
         val quantity = EditText(this).apply {
             hint = "मात्रा"
             inputType = 2
             setText(item.quantity.toString())
         }
+
         val rate = EditText(this).apply {
             hint = "रेट"
             inputType = 8194
@@ -972,17 +1168,22 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("सेव") { _, _ ->
                 val q =
                     quantity.text.toString().toIntOrNull() ?: 0
+
                 val r =
                     rate.text.toString().toDoubleOrNull() ?: -1.0
 
                 if (name.text.isNotBlank() && q > 0 && r >= 0) {
-                    ProductionManager(db).updateDetails(
-                        item.id,
-                        name.text.toString(),
-                        q,
-                        r
-                    )
-                    showHome()
+                    try {
+                        ProductionManager(db).updateDetails(
+                            item.id,
+                            name.text.toString(),
+                            q,
+                            r
+                        )
+                        showHome()
+                    } catch (e: Exception) {
+                        showMessage("पीस अपडेट नहीं हुआ: ${e.message}")
+                    }
                 } else {
                     showMessage("सही नाम, मात्रा और रेट भरें।")
                 }
@@ -1003,28 +1204,6 @@ class MainActivity : AppCompatActivity() {
                 action()
             }
             .show()
-    }
-
-    private fun summaryCard(
-        title: String,
-        value: String,
-        boxId: String
-    ): View {
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(18, 16, 18, 16)
-        }
-
-        card.addView(text(title, 14f, MUTED))
-        card.addView(text(value, 23f, WHITE, true))
-
-        card.layoutParams =
-            LinearLayout.LayoutParams(-1, -2).apply {
-                bottomMargin = 12
-            }
-
-        DesignManager(this).applyTo(card, boxId)
-        return card
     }
 
     private fun text(
