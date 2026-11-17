@@ -291,17 +291,17 @@ class PiecePresetScreen(private val context: Context) {
             setPadding(22, 8, 22, 8)
         }
 
-        val name = EditText(context).apply {
+                val name = EditText(context).apply {
             hint = "पीस का नाम"
             setText(oldName)
-            singleLine = true
+            setSingleLine(true)
         }
 
         val rate = EditText(context).apply {
             hint = "एक पीस का रेट"
             inputType = 8194
             setText(oldRate)
-            singleLine = true
+            setSingleLine(true)
         }
 
         box.addView(name)
