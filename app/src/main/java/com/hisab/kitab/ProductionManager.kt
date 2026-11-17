@@ -60,10 +60,10 @@ class ProductionManager(private val db: AppDatabase) {
     }
 
     fun totalQuantity(): Int =
-        scalar("SELECT COALESCE(SUM(quantity),0)").toInt()
+        scalar("COALESCE(SUM(quantity),0)").toInt()
 
     fun totalAmount(): Double =
-        scalar("SELECT COALESCE(SUM(total),0)")
+        scalar("COALESCE(SUM(total),0)")
 
     private fun scalar(expression: String): Double {
         db.readableDatabase.rawQuery(
