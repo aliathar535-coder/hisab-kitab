@@ -6,7 +6,7 @@ import android.graphics.Color
 
 class CalculatorSettings(context: Context) {
 
-    private val prefs = context.getSharedPreferences(
+    private val prefs = context.applicationContext.getSharedPreferences(
         "calculator_custom_settings",
         Context.MODE_PRIVATE
     )
