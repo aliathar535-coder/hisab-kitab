@@ -6,12 +6,12 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
-import android.view.View
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.ScrollView
 import java.util.Locale
 
 class CalculatorScreen(private val context: Context) {
@@ -20,6 +20,7 @@ class CalculatorScreen(private val context: Context) {
     private val settings = CalculatorSettings(context)
 
     private var expression = ""
+
     private lateinit var display: TextView
     private lateinit var resultView: TextView
     private lateinit var root: LinearLayout
@@ -79,13 +80,16 @@ class CalculatorScreen(private val context: Context) {
         )
 
         keys.forEach { key ->
+
             val button = Button(context).apply {
                 text = key
                 isAllCaps = false
                 textSize = if (key.length > 2) 11f else 19f
                 setTextColor(Color.WHITE)
+
                 minHeight = settings.getButtonSize()
                 elevation = 9f
+
                 background = rounded(
                     when (key) {
                         "=", "SAVE" -> 0xFF16A34A.toInt()
@@ -100,11 +104,21 @@ class CalculatorScreen(private val context: Context) {
                 setOnClickListener {
                     when (key) {
                         "AC" -> expression = ""
-                        "⌫" -> expression = expression.dropLast(1)
+
+                        "⌫" -> {
+                            if (expression.isNotEmpty()) {
+                                expression = expression.dropLast(1)
+                            }
+                        }
+
                         "=" -> saveAndCalculate()
+
                         "HISTORY" -> showHistory()
+
                         "SAVE" -> saveCurrent()
+
                         "⚙" -> showSettings()
+
                         else -> {
                             expression += when (key) {
                                 "×" -> "*"
@@ -113,6 +127,7 @@ class CalculatorScreen(private val context: Context) {
                             }
                         }
                     }
+
                     updateDisplay()
                 }
             }
@@ -132,6 +147,8 @@ class CalculatorScreen(private val context: Context) {
 
         root.addView(grid)
 
+        updateDisplay()
+
         return root
     }
 
@@ -140,28 +157,39 @@ class CalculatorScreen(private val context: Context) {
 
         val answer = calculate(expression)
 
-        resultView.text = if (answer != null && expression.isNotBlank()) {
-            "= $answer"
-        } else {
-            "जवाब यहाँ दिखेगा"
-        }
+        resultView.text =
+            if (answer != null && expression.isNotBlank()) {
+                "= $answer"
+            } else {
+                "जवाब यहाँ दिखेगा"
+            }
     }
 
     private fun saveAndCalculate() {
-        val answer = calculate(expression) ?: return
+        val answer = calculate(expression) ?: run {
+            message("पहले सही हिसाब लिखें।")
+            return
+        }
+
         history.save(expression, answer)
         expression = answer
     }
 
     private fun saveCurrent() {
         val answer = calculate(expression)
+
         if (answer == null) {
             message("पहले सही हिसाब लिखें।")
             return
         }
 
         val id = history.save(expression, answer)
-        if (id > 0) message("हिसाब हिस्ट्री में सेव हो गया।")
+
+        if (id > 0) {
+            message("हिसाब हिस्ट्री में सेव हो गया।")
+        } else {
+            message("हिसाब सेव नहीं हो पाया।")
+        }
     }
 
     private fun showHistory() {
@@ -178,10 +206,14 @@ class CalculatorScreen(private val context: Context) {
         }
 
         items.forEach { item ->
+
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(10, 10, 10, 10)
-                background = rounded(0xFF263449.toInt(), 14f)
+                background = rounded(
+                    0xFF263449.toInt(),
+                    14f
+                )
             }
 
             val detail = TextView(context).apply {
@@ -194,6 +226,7 @@ class CalculatorScreen(private val context: Context) {
             val delete = Button(context).apply {
                 text = "यह हिसाब हटाएँ"
                 isAllCaps = false
+
                 setOnClickListener {
                     AlertDialog.Builder(context)
                         .setTitle("हिस्ट्री हटाएँ?")
@@ -214,11 +247,12 @@ class CalculatorScreen(private val context: Context) {
                 -1,
                 -2
             )
+
             params.bottomMargin = 10
             list.addView(row, params)
         }
 
-        val scroll = android.widget.ScrollView(context).apply {
+        val scroll = ScrollView(context).apply {
             addView(list)
         }
 
@@ -226,6 +260,7 @@ class CalculatorScreen(private val context: Context) {
             .setTitle("कैलकुलेटर हिस्ट्री")
             .setView(scroll)
             .setNeutralButton("पूरी हिस्ट्री साफ") { _, _ ->
+
                 AlertDialog.Builder(context)
                     .setTitle("पूरी हिस्ट्री हटाएँ?")
                     .setMessage("यह हिस्ट्री वापस नहीं आएगी।")
@@ -241,18 +276,21 @@ class CalculatorScreen(private val context: Context) {
     }
 
     private fun showSettings() {
+
         val panel = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 12, 20, 12)
         }
 
         fun addLabel(value: String) {
-            panel.addView(TextView(context).apply {
-                text = value
-                textSize = 15f
-                setTextColor(Color.WHITE)
-                setPadding(0, 12, 0, 4)
-            })
+            panel.addView(
+                TextView(context).apply {
+                    text = value
+                    textSize = 15f
+                    setTextColor(Color.WHITE)
+                    setPadding(0, 12, 0, 4)
+                }
+            )
         }
 
         addLabel("बटन का रंग")
@@ -267,17 +305,25 @@ class CalculatorScreen(private val context: Context) {
         )
 
         val colorRow = LinearLayout(context)
+
         colors.forEach { color ->
-            val b = Button(context).apply {
+
+            val button = Button(context).apply {
                 text = "●"
                 setTextColor(color)
+
                 setOnClickListener {
                     settings.setButtonColor(color)
                     message("रंग सेव हो गया। कैलकुलेटर दोबारा खोलें।")
                 }
             }
-            colorRow.addView(b, LinearLayout.LayoutParams(0, 55, 1f))
+
+            colorRow.addView(
+                button,
+                LinearLayout.LayoutParams(0, 55, 1f)
+            )
         }
+
         panel.addView(colorRow)
 
         addLabel("बटन का आकार")
@@ -286,6 +332,7 @@ class CalculatorScreen(private val context: Context) {
             max = 40
             progress = settings.getButtonSize() - 42
         }
+
         panel.addView(sizeBar)
 
         addLabel("बटन की गोलाई")
@@ -294,6 +341,7 @@ class CalculatorScreen(private val context: Context) {
             max = 28
             progress = settings.getCornerRadius().toInt() - 4
         }
+
         panel.addView(roundBar)
 
         AlertDialog.Builder(context)
@@ -305,21 +353,37 @@ class CalculatorScreen(private val context: Context) {
                 message("डिफॉल्ट डिजाइन सेट हो गया।")
             }
             .setPositiveButton("सेव") { _, _ ->
-                settings.setButtonSize(sizeBar.progress + 42)
+
+                settings.setButtonSize(
+                    sizeBar.progress + 42
+                )
+
                 settings.setCornerRadius(
                     (roundBar.progress + 4).toFloat()
                 )
+
                 message("सेटिंग सेव हो गई।")
             }
             .show()
     }
 
-    private fun rounded(color: Int, radius: Float): GradientDrawable {
+    private fun rounded(
+        color: Int,
+        radius: Float
+    ): GradientDrawable {
+
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = radius * context.resources.displayMetrics.density
+
+            cornerRadius =
+                radius * context.resources.displayMetrics.density
+
             setColor(color)
-            setStroke(1, 0x447FFFFFFF)
+
+            setStroke(
+                1,
+                0x44FFFFFF.toInt()
+            )
         }
     }
 
@@ -331,29 +395,48 @@ class CalculatorScreen(private val context: Context) {
     }
 
     private fun calculate(value: String): String? {
+
         return try {
-            if (!value.matches(Regex("[0-9+*/(). %\\-]+"))) {
+
+            if (value.isBlank()) return null
+
+            if (!value.matches(
+                    Regex("[0-9+*/(). %\\-]+")
+                )
+            ) {
                 return null
             }
 
             val clean = value.replace("%", "/100")
+
             val result = Parser(clean).parse()
 
             if (!result.isFinite()) return null
 
-            if (result % 1.0 == 0.0) {
+            if (result % 1.0 == 0.0 &&
+                result >= Long.MIN_VALUE.toDouble() &&
+                result <= Long.MAX_VALUE.toDouble()
+            ) {
                 result.toLong().toString()
             } else {
-                String.format(Locale.US, "%.8f", result)
+                String.format(
+                    Locale.US,
+                    "%.8f",
+                    result
+                )
                     .trimEnd('0')
                     .trimEnd('.')
             }
+
         } catch (_: Exception) {
             null
         }
     }
 
-    private class Parser(private val input: String) {
+    private class Parser(
+        private val input: String
+    ) {
+
         private var pos = 0
 
         fun parse(): Double {
@@ -364,9 +447,12 @@ class CalculatorScreen(private val context: Context) {
         }
 
         private fun expression(): Double {
+
             var value = term()
+
             while (true) {
                 spaces()
+
                 value = when {
                     take('+') -> value + term()
                     take('-') -> value - term()
@@ -376,9 +462,12 @@ class CalculatorScreen(private val context: Context) {
         }
 
         private fun term(): Double {
+
             var value = factor()
+
             while (true) {
                 spaces()
+
                 value = when {
                     take('*') -> value * factor()
                     take('/') -> value / factor()
@@ -388,9 +477,11 @@ class CalculatorScreen(private val context: Context) {
         }
 
         private fun factor(): Double {
+
             spaces()
 
             if (take('+')) return factor()
+
             if (take('-')) return -factor()
 
             if (take('(')) {
@@ -402,29 +493,47 @@ class CalculatorScreen(private val context: Context) {
             val start = pos
             var dots = 0
 
-            while (pos < input.length &&
-                (input[pos].isDigit() || input[pos] == '.')
+            while (
+                pos < input.length &&
+                (
+                    input[pos].isDigit() ||
+                    input[pos] == '.'
+                )
             ) {
-                if (input[pos] == '.') dots++
+
+                if (input[pos] == '.') {
+                    dots++
+                }
+
                 require(dots <= 1)
+
                 pos++
             }
 
             require(pos > start)
+
             return input.substring(start, pos).toDouble()
         }
 
         private fun spaces() {
-            while (pos < input.length && input[pos].isWhitespace()) {
+            while (
+                pos < input.length &&
+                input[pos].isWhitespace()
+            ) {
                 pos++
             }
         }
 
         private fun take(c: Char): Boolean {
-            if (pos < input.length && input[pos] == c) {
+
+            if (
+                pos < input.length &&
+                input[pos] == c
+            ) {
                 pos++
                 return true
             }
+
             return false
         }
     }
