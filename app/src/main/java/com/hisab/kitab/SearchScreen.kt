@@ -2,6 +2,9 @@
 package com.hisab.kitab
 
 import android.content.Context
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.*
@@ -15,6 +18,7 @@ class SearchScreen(
 ) {
 
     private data class SearchItem(
+        val type: String,
         val title: String,
         val detail: String,
         val timestamp: Long
@@ -29,6 +33,8 @@ class SearchScreen(
         root.addView(TextView(context).apply {
             text = "🔍 हिसाब-किताब सर्च"
             textSize = 23f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.WHITE)
             setPadding(4, 8, 4, 16)
         })
 
@@ -36,10 +42,20 @@ class SearchScreen(
             hint = "नाम, रकम, तारीख या विवरण लिखें"
             textSize = 16f
             setSingleLine(true)
+            setPadding(12, 12, 12, 12)
+        }
+
+        val filter = Spinner(context).apply {
+            adapter = ArrayAdapter(
+                context,
+                android.R.layout.simple_spinner_dropdown_item,
+                listOf("सभी रिकॉर्ड", "पीस", "पेमेंट", "खर्च")
+            )
         }
 
         val count = TextView(context).apply {
             textSize = 14f
+            setTextColor(0xFF38BDF8.toInt())
             setPadding(4, 10, 4, 10)
         }
 
@@ -57,7 +73,8 @@ class SearchScreen(
         ProductionManager(db).getAllEntries().forEach {
             allItems.add(
                 SearchItem(
-                    "पीस: ${it.name}",
+                    "पीस",
+                    it.name,
                     "${it.quantity} पीस × ₹${it.rate} = ₹${it.total}",
                     it.createdAt
                 )
@@ -67,7 +84,8 @@ class SearchScreen(
         PaymentManager(db).getAllPayments().forEach {
             allItems.add(
                 SearchItem(
-                    "पेमेंट: ${it.note.orEmpty()}",
+                    "पेमेंट",
+                    it.note.orEmpty().ifBlank { "पेमेंट प्राप्त" },
                     "मिली रकम: ₹${it.amount}",
                     it.createdAt
                 )
@@ -77,7 +95,8 @@ class SearchScreen(
         ExpenseManager(db).getAllExpenses().forEach {
             allItems.add(
                 SearchItem(
-                    "खर्च: ${it.title}",
+                    "खर्च",
+                    it.title,
                     "खर्च की रकम: ₹${it.amount}",
                     it.createdAt
                 )
@@ -86,28 +105,39 @@ class SearchScreen(
 
         allItems.sortByDescending { it.timestamp }
 
-        fun refresh(query: String) {
+        fun refresh() {
             results.removeAllViews()
 
-            val filtered = if (query.isBlank()) {
-                allItems
-            } else {
-                allItems.filter {
-                    (
-                        it.title + " " +
-                            it.detail + " " +
-                            dateFormat.format(Date(it.timestamp))
-                    ).contains(query, ignoreCase = true)
+            val query = search.text.toString().trim()
+            val selectedType = filter.selectedItem?.toString() ?: "सभी रिकॉर्ड"
+
+            val filtered = allItems.filter { item ->
+                val typeMatches = when (selectedType) {
+                    "पीस" -> item.type == "पीस"
+                    "पेमेंट" -> item.type == "पेमेंट"
+                    "खर्च" -> item.type == "खर्च"
+                    else -> true
                 }
+
+                val textMatches = query.isBlank() ||
+                    (
+                        item.type + " " +
+                        item.title + " " +
+                        item.detail + " " +
+                        dateFormat.format(Date(item.timestamp))
+                    ).contains(query, ignoreCase = true)
+
+                typeMatches && textMatches
             }
 
             count.text = "कुल ${filtered.size} रिकॉर्ड मिले"
 
             if (filtered.isEmpty()) {
                 results.addView(TextView(context).apply {
-                    text = "कोई रिकॉर्ड नहीं मिला।"
+                    text = "कोई रिकॉर्ड नहीं मिला।\nदूसरा नाम या रकम लिखकर देखें।"
                     textSize = 16f
-                    setPadding(10, 20, 10, 20)
+                    setTextColor(Color.WHITE)
+                    setPadding(10, 24, 10, 24)
                 })
             }
 
@@ -115,22 +145,23 @@ class SearchScreen(
                 val card = LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     setPadding(12, 10, 12, 10)
-                    background = android.graphics.drawable.GradientDrawable().apply {
+                    background = GradientDrawable().apply {
                         setColor(0xFF1E293B.toInt())
                         cornerRadius = 18f
+                        setStroke(1, 0x44FFFFFF)
                     }
                     layoutParams = LinearLayout.LayoutParams(
-                        -1,
-                        -2
+                        -1, -2
                     ).apply {
                         bottomMargin = 10
                     }
                 }
 
                 card.addView(TextView(context).apply {
-                    text = item.title
+                    text = "${item.type} • ${item.title}"
                     textSize = 16f
-                    setTextColor(0xFFFFFFFF.toInt())
+                    setTypeface(null, Typeface.BOLD)
+                    setTextColor(Color.WHITE)
                 })
 
                 card.addView(TextView(context).apply {
@@ -152,37 +183,44 @@ class SearchScreen(
 
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(
-                s: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
+                s: CharSequence?, start: Int, count: Int, after: Int
             ) {}
 
             override fun onTextChanged(
-                s: CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
+                s: CharSequence?, start: Int, before: Int, count: Int
             ) {
-                refresh(s?.toString().orEmpty())
+                refresh()
             }
 
             override fun afterTextChanged(s: Editable?) {}
         })
 
+        filter.onItemSelectedListener =
+            object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?,
+                    view: android.view.View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    refresh()
+                }
+
+                override fun onNothingSelected(
+                    parent: android.widget.AdapterView<*>?
+                ) {}
+            }
+
         root.addView(search)
+        root.addView(filter)
         root.addView(count)
 
         root.addView(ScrollView(context).apply {
             addView(results)
-            layoutParams = LinearLayout.LayoutParams(
-                -1,
-                0,
-                1f
-            )
+            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
         })
 
-        refresh("")
+        refresh()
         return root
     }
 }
