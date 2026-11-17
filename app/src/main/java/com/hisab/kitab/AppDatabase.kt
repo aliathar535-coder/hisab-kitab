@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import android.content.Context
@@ -5,7 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 class AppDatabase(context: Context) :
-    SQLiteOpenHelper(context, "hisab_kitab.db", null, 1) {
+    SQLiteOpenHelper(context, "hisab_kitab.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
@@ -37,6 +38,19 @@ class AppDatabase(context: Context) :
                 created_at INTEGER NOT NULL
             )
         """.trimIndent())
+
+        createCalculatorHistory(db)
+    }
+
+    private fun createCalculatorHistory(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS calculator_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                expression TEXT NOT NULL,
+                result TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
     }
 
     override fun onUpgrade(
@@ -44,6 +58,8 @@ class AppDatabase(context: Context) :
         oldVersion: Int,
         newVersion: Int
     ) {
-        // आगे के database upgrades यहाँ जोड़े जाएँगे।
+        if (oldVersion < 2) {
+            createCalculatorHistory(db)
+        }
     }
-    }
+}
