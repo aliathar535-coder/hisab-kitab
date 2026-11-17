@@ -861,8 +861,6 @@ class MainActivity : AppCompatActivity() {
                             "विवरण: ${item.note.orEmpty()}\n" +
                             "तारीख: ${date(item.createdAt)}"
                     )
-                                                "तारीख: ${date(item.createdAt)}"
-                    )
                     .setNeutralButton("Edit") { _, _ ->
                         editPayment(item.id, item.amount, item.note)
                     }
