@@ -1,7 +1,6 @@
 
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">HISAB-KITAB</string>
     <string name="app_subtitle">Your complete work and income tracker</string>
 
@@ -58,5 +57,4 @@
     <string name="valid_amount">Enter a valid amount.</string>
     <string name="valid_expense">Enter an expense name and valid amount.</string>
     <string name="design_next">Design Studio will be connected in the next update.</string>
-
 </resources>
