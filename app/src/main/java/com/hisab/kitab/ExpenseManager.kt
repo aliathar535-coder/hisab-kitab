@@ -15,13 +15,25 @@ class ExpenseManager(private val db: AppDatabase) {
     fun addExpense(title: String, amount: Double): Long {
         require(title.isNotBlank() && amount > 0)
 
+        val database = db.writableDatabase
         val values = ContentValues().apply {
             put("title", title.trim())
             put("amount", amount)
             put("created_at", System.currentTimeMillis())
         }
 
-        return db.writableDatabase.insertOrThrow("expenses", null, values)
+        database.beginTransaction()
+        try {
+            val id = database.insertOrThrow("expenses", null, values)
+            addAudit(
+                database, id, "ADD",
+                "खर्च जोड़ा: ${title.trim()} — ₹$amount"
+            )
+            database.setTransactionSuccessful()
+            return id
+        } finally {
+            database.endTransaction()
+        }
     }
 
     fun totalExpenses(): Double {
@@ -59,18 +71,70 @@ class ExpenseManager(private val db: AppDatabase) {
     ): Boolean {
         require(title.isNotBlank() && amount > 0)
 
+        val database = db.writableDatabase
         val values = ContentValues().apply {
             put("title", title.trim())
             put("amount", amount)
         }
 
-        return db.writableDatabase.update(
-            "expenses", values, "id=?", arrayOf(id.toString())
-        ) > 0
+        database.beginTransaction()
+        try {
+            val changed = database.update(
+                "expenses", values, "id=?",
+                arrayOf(id.toString())
+            ) > 0
+
+            if (changed) {
+                addAudit(
+                    database, id, "EDIT",
+                    "खर्च बदला: ${title.trim()} — ₹$amount"
+                )
+            }
+
+            database.setTransactionSuccessful()
+            return changed
+        } finally {
+            database.endTransaction()
+        }
     }
 
-    fun deleteExpense(id: Long): Boolean =
-        db.writableDatabase.delete(
-            "expenses", "id=?", arrayOf(id.toString())
-        ) > 0
+    fun deleteExpense(id: Long): Boolean {
+        val old = getAllExpenses().firstOrNull { it.id == id } ?: return false
+        val database = db.writableDatabase
+
+        database.beginTransaction()
+        try {
+            val deleted = database.delete(
+                "expenses", "id=?", arrayOf(id.toString())
+            ) > 0
+
+            if (deleted) {
+                addAudit(
+                    database, id, "DELETE",
+                    "खर्च हटाया: ${old.title} — ₹${old.amount}"
+                )
+            }
+
+            database.setTransactionSuccessful()
+            return deleted
+        } finally {
+            database.endTransaction()
+        }
+    }
+
+    private fun addAudit(
+        database: android.database.sqlite.SQLiteDatabase,
+        id: Long,
+        action: String,
+        description: String
+    ) {
+        val values = ContentValues().apply {
+            put("item_type", "EXPENSE")
+            put("item_id", id)
+            put("action", action)
+            put("description", description)
+            put("created_at", System.currentTimeMillis())
+        }
+        database.insert("audit_history", null, values)
+    }
 }
