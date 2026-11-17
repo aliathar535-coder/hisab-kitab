@@ -17,7 +17,7 @@ class PhotoManager(private val context: Context) {
         if (!exists()) mkdirs()
     }
 
-    // Original photo bytes are copied without resizing or compression.
+    // Original photo is copied without resizing or compression.
     fun savePhoto(uri: Uri): String? {
         var outputFile: File? = null
 
@@ -56,18 +56,16 @@ class PhotoManager(private val context: Context) {
             }
 
             outputFile.absolutePath
-
         } catch (e: Exception) {
             outputFile?.delete()
             null
         }
     }
 
-    // Safe preview: never decode the full original into memory.
     fun loadPhoto(
         path: String,
-        maxWidth: Int = 1000,
-        maxHeight: Int = 1000
+        maxWidth: Int = 1200,
+        maxHeight: Int = 1200
     ): Bitmap? {
         return try {
             val file = File(path)
@@ -84,7 +82,6 @@ class PhotoManager(private val context: Context) {
             }
 
             var sampleSize = 1
-
             while (
                 bounds.outWidth / sampleSize > maxWidth ||
                 bounds.outHeight / sampleSize > maxHeight
@@ -98,7 +95,6 @@ class PhotoManager(private val context: Context) {
             }
 
             BitmapFactory.decodeFile(path, options)
-
         } catch (e: OutOfMemoryError) {
             null
         } catch (e: Exception) {
