@@ -65,17 +65,16 @@ class PiecePresetScreen(private val context: Context) {
             orientation = LinearLayout.VERTICAL
         }
 
-        val scroll = ScrollView(context).apply {
+                val scroll = ScrollView(context).apply {
             isFillViewport = true
             addView(
                 listContainer,
-                ScrollView.LayoutParams(
-                    ScrollView.LayoutParams.MATCH_PARENT,
-                    ScrollView.LayoutParams.WRAP_CONTENT
+                android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
                 )
             )
-        }
-
+                }
         root.addView(heading)
         root.addView(description)
         root.addView(addButton)
