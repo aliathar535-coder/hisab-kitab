@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import java.text.SimpleDateFormat
@@ -6,17 +7,14 @@ import java.util.Locale
 
 class HistoryManager(private val db: AppDatabase) {
 
-    fun getProductionHistory(): List<ProductionEntry> {
-        return ProductionManager(db).getAllEntries()
-    }
+    fun getProductionHistory(): List<ProductionEntry> =
+        ProductionManager(db).getAllEntries()
 
-    fun getPaymentHistory(): List<PaymentEntry> {
-        return PaymentManager(db).getAllPayments()
-    }
+    fun getPaymentHistory(): List<PaymentEntry> =
+        PaymentManager(db).getAllPayments()
 
-    fun getExpenseHistory(): List<ExpenseEntry> {
-        return ExpenseManager(db).getAllExpenses()
-    }
+    fun getExpenseHistory(): List<ExpenseEntry> =
+        ExpenseManager(db).getAllExpenses()
 
     fun formatDate(timestamp: Long): String {
         return SimpleDateFormat(
@@ -37,6 +35,13 @@ class HistoryManager(private val db: AppDatabase) {
         val income = production.totalAmount()
         val received = payments.totalReceived()
         val spent = expenses.totalExpenses()
+        val profit = income - spent
+
+        val percentage = if (income > 0.0) {
+            (profit / income) * 100.0
+        } else {
+            0.0
+        }
 
         return Summary(
             totalPieces = production.totalQuantity(),
@@ -44,7 +49,8 @@ class HistoryManager(private val db: AppDatabase) {
             received = received,
             expenses = spent,
             remaining = income - received,
-            profit = income - spent
+            profit = profit,
+            profitPercentage = percentage
         )
     }
 }
@@ -55,5 +61,6 @@ data class Summary(
     val received: Double,
     val expenses: Double,
     val remaining: Double,
-    val profit: Double
+    val profit: Double,
+    val profitPercentage: Double
 )
