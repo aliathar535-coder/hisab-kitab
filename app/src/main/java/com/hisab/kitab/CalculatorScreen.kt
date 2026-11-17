@@ -1,3 +1,4 @@
+
 package com.hisab.kitab
 
 import android.content.Context
@@ -6,7 +7,6 @@ import android.widget.Button
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import javax.script.ScriptEngineManager
 
 class CalculatorScreen(private val context: Context) {
 
@@ -45,23 +45,33 @@ class CalculatorScreen(private val context: Context) {
             val button = Button(context).apply {
                 text = key
                 textSize = 18f
+
                 setOnClickListener {
                     when (key) {
                         "C" -> expression = ""
+
                         "⌫" -> expression = expression.dropLast(1)
+
                         "=" -> {
                             val result = calculate(expression)
-                            expression = result ?: expression
+                            if (result != null) {
+                                expression = result
+                            }
                         }
-                        else -> expression += when (key) {
-                            "×" -> "*"
-                            "÷" -> "/"
-                            else -> key
+
+                        else -> {
+                            expression += when (key) {
+                                "×" -> "*"
+                                "÷" -> "/"
+                                else -> key
+                            }
                         }
                     }
+
                     display.text = expression.ifEmpty { "0" }
                 }
             }
+
             grid.addView(button)
         }
 
@@ -71,9 +81,12 @@ class CalculatorScreen(private val context: Context) {
 
     private fun calculate(value: String): String? {
         return try {
-            if (!value.matches(Regex("[0-9+*/(). -]+"))) return null
+            if (!value.matches(Regex("[0-9+*/(). -]+"))) {
+                return null
+            }
 
             val result = Parser(value).parse()
+
             if (!result.isFinite()) return null
 
             if (result % 1.0 == 0.0) {
@@ -98,8 +111,10 @@ class CalculatorScreen(private val context: Context) {
 
         private fun expression(): Double {
             var value = term()
+
             while (true) {
                 skipSpaces()
+
                 value = when {
                     take('+') -> value + term()
                     take('-') -> value - term()
@@ -110,8 +125,10 @@ class CalculatorScreen(private val context: Context) {
 
         private fun term(): Double {
             var value = factor()
+
             while (true) {
                 skipSpaces()
+
                 value = when {
                     take('*') -> value * factor()
                     take('/') -> value / factor()
@@ -122,6 +139,7 @@ class CalculatorScreen(private val context: Context) {
 
         private fun factor(): Double {
             skipSpaces()
+
             if (take('+')) return factor()
             if (take('-')) return -factor()
 
@@ -132,17 +150,23 @@ class CalculatorScreen(private val context: Context) {
             }
 
             val start = pos
-            while (pos < input.length &&
-                (input[pos].isDigit() || input[pos] == '.')) {
+
+            while (
+                pos < input.length &&
+                (input[pos].isDigit() || input[pos] == '.')
+            ) {
                 pos++
             }
 
             require(start < pos)
+
             return input.substring(start, pos).toDouble()
         }
 
         private fun skipSpaces() {
-            while (pos < input.length && input[pos].isWhitespace()) pos++
+            while (pos < input.length && input[pos].isWhitespace()) {
+                pos++
+            }
         }
 
         private fun take(char: Char): Boolean {
@@ -150,6 +174,7 @@ class CalculatorScreen(private val context: Context) {
                 pos++
                 return true
             }
+
             return false
         }
     }
