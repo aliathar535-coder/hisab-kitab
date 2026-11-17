@@ -1,7 +1,6 @@
 
 package com.hisab.kitab
 
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
@@ -36,6 +35,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        LanguageManager.applyLanguage(this)
         db = AppDatabase(this)
 
         galleryLauncher = registerForActivityResult(
@@ -102,17 +103,20 @@ class MainActivity : AppCompatActivity() {
         val summary = HistoryManager(db).getSummary()
 
         content.addView(space())
-        content.addView(summaryCard("कुल पीस", summary.totalPieces.toString()))
-        content.addView(summaryCard("कुल कमाई", money(summary.totalIncome)))
-        content.addView(summaryCard("मिली हुई रकम", money(summary.received)))
-        content.addView(summaryCard("कुल खर्च", money(summary.expenses)))
-        content.addView(summaryCard("बाकी रकम", money(summary.remaining)))
+        content.addView(summaryCard("कुल पीस", summary.totalPieces.toString(), "total_pieces"))
+        content.addView(summaryCard("कुल कमाई", money(summary.totalIncome), "total_income"))
+        content.addView(summaryCard("मिली हुई रकम", money(summary.received), "received"))
+        content.addView(summaryCard("कुल खर्च", money(summary.expenses), "expenses"))
+        content.addView(summaryCard("बाकी रकम", money(summary.remaining), "remaining"))
 
-        val profitTitle = if (summary.profit >= 0) "कुल मुनाफा" else "कुल नुकसान"
+        val profitTitle =
+            if (summary.profit >= 0) "कुल मुनाफा" else "कुल नुकसान"
+
         content.addView(
             summaryCard(
                 "$profitTitle (${String.format(Locale.getDefault(), "%.2f", summary.profitPercentage)}%)",
-                money(summary.profit)
+                money(summary.profit),
+                "profit"
             )
         )
 
@@ -124,11 +128,40 @@ class MainActivity : AppCompatActivity() {
         addButton(content, "खर्च जोड़ें") { showExpense() }
         addButton(content, "खर्च हिस्ट्री देखें") { showExpenseHistory() }
         addButton(content, "पीस हिस्ट्री / Edit / Delete") { showHistory() }
-        addButton(content, "डिजाइन और STYLE") {
-            showMessage("Design Studio का अगला हिस्सा बाद में जोड़ा जाएगा।")
+
+        addButton(content, "🎨 BOX DESIGN STUDIO") {
+            showCustomScreen("डिजाइन स्टूडियो", DesignStudio(this).show())
+        }
+        addButton(content, "🔤 FONT STUDIO") {
+            showCustomScreen("टेक्स्ट डिजाइन", FontStudio(this).show())
+        }
+        addButton(content, "⚙️ SETTINGS") {
+            showCustomScreen(
+                "सेटिंग",
+                SettingsScreen(
+                    this,
+                    onLanguageChanged = {
+                        recreate()
+                    },
+                    onBack = {
+                        showHome()
+                    }
+                ).show()
+            )
         }
 
         setContentView(root)
+    }
+
+    private fun showCustomScreen(title: String, view: View) {
+        val scroll = ScrollView(this)
+        scroll.addView(view)
+
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(scroll)
+            .setPositiveButton("बंद", null)
+            .show()
     }
 
     private fun showAddPiece() {
@@ -139,7 +172,9 @@ class MainActivity : AppCompatActivity() {
             setPadding(20, 8, 20, 8)
         }
 
-        val name = EditText(this).apply { hint = "पीस का नाम" }
+        val name = EditText(this).apply {
+            hint = "पीस का नाम"
+        }
         val quantity = EditText(this).apply {
             hint = "कितने पीस बनाए?"
             inputType = 2
@@ -162,7 +197,9 @@ class MainActivity : AppCompatActivity() {
         val photoButton = Button(this).apply {
             text = "📷 कैमरा / गैलरी से फोटो जोड़ें"
             isAllCaps = false
-            setOnClickListener { showPhotoOptions(preview, status) }
+            setOnClickListener {
+                showPhotoOptions(preview, status)
+            }
         }
 
         box.addView(name)
@@ -181,29 +218,30 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val q = quantity.text.toString().toIntOrNull() ?: 0
-                val r = rate.text.toString().toDoubleOrNull() ?: -1.0
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener {
+                    val q = quantity.text.toString().toIntOrNull() ?: 0
+                    val r = rate.text.toString().toDoubleOrNull() ?: -1.0
 
-                if (name.text.isBlank() || q <= 0 || r < 0) {
-                    showMessage("सही नाम, मात्रा और रेट भरें।")
-                    return@setOnClickListener
-                }
+                    if (name.text.isBlank() || q <= 0 || r < 0) {
+                        showMessage("सही नाम, मात्रा और रेट भरें।")
+                        return@setOnClickListener
+                    }
 
-                try {
-                    ProductionManager(db).addEntry(
-                        name.text.toString(),
-                        q,
-                        r,
-                        selectedPhotoPath
-                    )
-                    selectedPhotoPath = null
-                    dialog.dismiss()
-                    showHome()
-                } catch (e: Exception) {
-                    showMessage("एंट्री सेव नहीं हुई: ${e.message}")
+                    try {
+                        ProductionManager(db).addEntry(
+                            name.text.toString(),
+                            q,
+                            r,
+                            selectedPhotoPath
+                        )
+                        selectedPhotoPath = null
+                        dialog.dismiss()
+                        showHome()
+                    } catch (e: Exception) {
+                        showMessage("एंट्री सेव नहीं हुई: ${e.message}")
+                    }
                 }
-            }
         }
 
         dialog.setOnDismissListener {
@@ -214,14 +252,20 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun showPhotoOptions(preview: ImageView, status: TextView) {
+    private fun showPhotoOptions(
+        preview: ImageView,
+        status: TextView
+    ) {
         photoPreviewTarget = preview
         photoStatusTarget = status
 
         AlertDialog.Builder(this)
             .setTitle("फोटो कहाँ से जोड़ना है?")
             .setItems(
-                arrayOf("📷 कैमरा से फोटो खींचें", "🖼️ गैलरी से फोटो चुनें")
+                arrayOf(
+                    "📷 कैमरा से फोटो खींचें",
+                    "🖼️ गैलरी से फोटो चुनें"
+                )
             ) { _, which ->
                 when (which) {
                     0 -> openCamera()
@@ -234,8 +278,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun openCamera() {
         try {
-            val folder = File(cacheDir, "camera").apply { mkdirs() }
-            val file = File(folder, "camera_${System.currentTimeMillis()}.jpg")
+            val folder = File(cacheDir, "camera").apply {
+                mkdirs()
+            }
+            val file = File(
+                folder,
+                "camera_${System.currentTimeMillis()}.jpg"
+            )
 
             cameraUri = FileProvider.getUriForFile(
                 this,
@@ -266,7 +315,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            photoStatusTarget?.text = "✓ फोटो तैयार है। देखने के लिए फोटो पर दबाएँ।"
+            photoStatusTarget?.text =
+                "✓ फोटो तैयार है। देखने के लिए फोटो पर दबाएँ।"
         } catch (e: Exception) {
             showMessage("फोटो सेव करने में समस्या हुई।")
         }
@@ -294,7 +344,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private inner class ZoomImageView : ImageView(this@MainActivity) {
+    private inner class ZoomImageView :
+        ImageView(this@MainActivity) {
+
         private val matrixValue = Matrix()
         private var scale = 1f
         private var lastX = 0f
@@ -303,12 +355,18 @@ class MainActivity : AppCompatActivity() {
         private val detector = ScaleGestureDetector(
             this@MainActivity,
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                override fun onScale(detector: ScaleGestureDetector): Boolean {
-                    val next = (scale * detector.scaleFactor).coerceIn(1f, 5f)
+                override fun onScale(
+                    detector: ScaleGestureDetector
+                ): Boolean {
+                    val next =
+                        (scale * detector.scaleFactor).coerceIn(1f, 5f)
                     val factor = next / scale
+
                     matrixValue.postScale(
-                        factor, factor,
-                        detector.focusX, detector.focusY
+                        factor,
+                        factor,
+                        detector.focusX,
+                        detector.focusY
                     )
                     scale = next
                     imageMatrix = matrixValue
@@ -320,6 +378,7 @@ class MainActivity : AppCompatActivity() {
         init {
             scaleType = ScaleType.MATRIX
             setBackgroundColor(0xFF080D16.toInt())
+
             setOnTouchListener { _, event ->
                 detector.onTouchEvent(event)
 
@@ -362,7 +421,9 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
         val window = dialog.window ?: return
-        window.setBackgroundDrawableResource(android.R.color.transparent)
+        window.setBackgroundDrawableResource(
+            android.R.color.transparent
+        )
         window.setLayout(
             (resources.displayMetrics.widthPixels * 0.94f).toInt(),
             -2
@@ -374,7 +435,9 @@ class MainActivity : AppCompatActivity() {
         params.y = 100
         window.attributes = params
 
-        val handle = calculatorView.findViewWithTag<View>("calc_drag_handle")
+        val handle = calculatorView
+            .findViewWithTag<View>("calc_drag_handle")
+
         var startX = 0f
         var startY = 0f
         var initialX = 0
@@ -391,8 +454,12 @@ class MainActivity : AppCompatActivity() {
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val updated = window.attributes
-                    updated.x = (initialX + event.rawX - startX).toInt().coerceAtLeast(0)
-                    updated.y = (initialY + event.rawY - startY).toInt().coerceAtLeast(0)
+                    updated.x =
+                        (initialX + event.rawX - startX)
+                            .toInt().coerceAtLeast(0)
+                    updated.y =
+                        (initialY + event.rawY - startY)
+                            .toInt().coerceAtLeast(0)
                     window.attributes = updated
                     true
                 }
@@ -400,12 +467,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
     
     private fun showPayment() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 8, 20, 8)
         }
+
         val amount = EditText(this).apply {
             hint = "मिली हुई रकम"
             inputType = 8194
@@ -413,6 +482,7 @@ class MainActivity : AppCompatActivity() {
         val note = EditText(this).apply {
             hint = "विवरण (जैसे एडवांस / बाकी पेमेंट)"
         }
+
         box.addView(amount)
         box.addView(note)
 
@@ -421,11 +491,18 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setNegativeButton("रद्द", null)
             .setPositiveButton("सेव") { _, _ ->
-                val value = amount.text.toString().toDoubleOrNull() ?: 0.0
+                val value =
+                    amount.text.toString().toDoubleOrNull() ?: 0.0
+
                 if (value > 0) {
-                    PaymentManager(db).addPayment(value, note.text.toString())
+                    PaymentManager(db).addPayment(
+                        value,
+                        note.text.toString()
+                    )
                     showHome()
-                } else showMessage("सही रकम लिखें।")
+                } else {
+                    showMessage("सही रकम लिखें।")
+                }
             }
             .show()
     }
@@ -440,22 +517,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         val labels = items.map {
-            "${money(it.amount)}  •  ${it.note.orEmpty().ifBlank { "पेमेंट" }}\n${date(it.createdAt)}"
+            "${money(it.amount)}  •  " +
+                "${it.note.orEmpty().ifBlank { "पेमेंट" }}\n" +
+                date(it.createdAt)
         }.toTypedArray()
 
         AlertDialog.Builder(this)
             .setTitle("पेमेंट हिस्ट्री")
             .setItems(labels) { _, index ->
                 val item = items[index]
+
                 AlertDialog.Builder(this)
                     .setTitle("पेमेंट विवरण")
                     .setMessage(
                         "रकम: ${money(item.amount)}\n" +
-                        "विवरण: ${item.note.orEmpty()}\n" +
-                        "तारीख: ${date(item.createdAt)}"
+                            "विवरण: ${item.note.orEmpty()}\n" +
+                            "तारीख: ${date(item.createdAt)}"
                     )
                     .setNeutralButton("Edit") { _, _ ->
-                        editPayment(item.id, item.amount, item.note)
+                        editPayment(
+                            item.id,
+                            item.amount,
+                            item.note
+                        )
                     }
                     .setNegativeButton("Delete") { _, _ ->
                         confirmDelete(
@@ -463,7 +547,6 @@ class MainActivity : AppCompatActivity() {
                             "हटाने के बाद कुल मिली रकम बदल जाएगी।"
                         ) {
                             manager.deletePayment(item.id)
-                            showPaymentHistory()
                             showHome()
                         }
                     }
@@ -474,11 +557,16 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun editPayment(id: Long, oldAmount: Double, oldNote: String?) {
+    private fun editPayment(
+        id: Long,
+        oldAmount: Double,
+        oldNote: String?
+    ) {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 8, 20, 8)
         }
+
         val amount = EditText(this).apply {
             hint = "रकम"
             inputType = 8194
@@ -488,6 +576,7 @@ class MainActivity : AppCompatActivity() {
             hint = "विवरण"
             setText(oldNote.orEmpty())
         }
+
         box.addView(amount)
         box.addView(note)
 
@@ -496,13 +585,19 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setNegativeButton("रद्द", null)
             .setPositiveButton("सेव") { _, _ ->
-                val value = amount.text.toString().toDoubleOrNull() ?: 0.0
+                val value =
+                    amount.text.toString().toDoubleOrNull() ?: 0.0
+
                 if (value > 0) {
                     PaymentManager(db).updatePayment(
-                        id, value, note.text.toString()
+                        id,
+                        value,
+                        note.text.toString()
                     )
                     showHome()
-                } else showMessage("सही रकम लिखें।")
+                } else {
+                    showMessage("सही रकम लिखें।")
+                }
             }
             .show()
     }
@@ -512,11 +607,15 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 8, 20, 8)
         }
-        val title = EditText(this).apply { hint = "खर्च का नाम" }
+
+        val title = EditText(this).apply {
+            hint = "खर्च का नाम"
+        }
         val amount = EditText(this).apply {
             hint = "खर्च की रकम"
             inputType = 8194
         }
+
         box.addView(title)
         box.addView(amount)
 
@@ -525,11 +624,18 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setNegativeButton("रद्द", null)
             .setPositiveButton("सेव") { _, _ ->
-                val value = amount.text.toString().toDoubleOrNull() ?: 0.0
+                val value =
+                    amount.text.toString().toDoubleOrNull() ?: 0.0
+
                 if (title.text.isNotBlank() && value > 0) {
-                    ExpenseManager(db).addExpense(title.text.toString(), value)
+                    ExpenseManager(db).addExpense(
+                        title.text.toString(),
+                        value
+                    )
                     showHome()
-                } else showMessage("खर्च का नाम और सही रकम लिखें।")
+                } else {
+                    showMessage("खर्च का नाम और सही रकम लिखें।")
+                }
             }
             .show()
     }
@@ -544,22 +650,28 @@ class MainActivity : AppCompatActivity() {
         }
 
         val labels = items.map {
-            "${it.title}  •  ${money(it.amount)}\n${date(it.createdAt)}"
+            "${it.title}  •  ${money(it.amount)}\n" +
+                date(it.createdAt)
         }.toTypedArray()
 
         AlertDialog.Builder(this)
             .setTitle("खर्च हिस्ट्री")
             .setItems(labels) { _, index ->
                 val item = items[index]
+
                 AlertDialog.Builder(this)
                     .setTitle("खर्च विवरण")
                     .setMessage(
                         "नाम: ${item.title}\n" +
-                        "रकम: ${money(item.amount)}\n" +
-                        "तारीख: ${date(item.createdAt)}"
+                            "रकम: ${money(item.amount)}\n" +
+                            "तारीख: ${date(item.createdAt)}"
                     )
                     .setNeutralButton("Edit") { _, _ ->
-                        editExpense(item.id, item.title, item.amount)
+                        editExpense(
+                            item.id,
+                            item.title,
+                            item.amount
+                        )
                     }
                     .setNegativeButton("Delete") { _, _ ->
                         confirmDelete(
@@ -567,7 +679,6 @@ class MainActivity : AppCompatActivity() {
                             "हटाने के बाद कुल खर्च और मुनाफा बदल जाएगा।"
                         ) {
                             manager.deleteExpense(item.id)
-                            showExpenseHistory()
                             showHome()
                         }
                     }
@@ -578,11 +689,16 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun editExpense(id: Long, oldTitle: String, oldAmount: Double) {
+    private fun editExpense(
+        id: Long,
+        oldTitle: String,
+        oldAmount: Double
+    ) {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 8, 20, 8)
         }
+
         val title = EditText(this).apply {
             hint = "खर्च का नाम"
             setText(oldTitle)
@@ -592,6 +708,7 @@ class MainActivity : AppCompatActivity() {
             inputType = 8194
             setText(oldAmount.toString())
         }
+
         box.addView(title)
         box.addView(amount)
 
@@ -600,13 +717,19 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setNegativeButton("रद्द", null)
             .setPositiveButton("सेव") { _, _ ->
-                val value = amount.text.toString().toDoubleOrNull() ?: 0.0
+                val value =
+                    amount.text.toString().toDoubleOrNull() ?: 0.0
+
                 if (title.text.isNotBlank() && value > 0) {
                     ExpenseManager(db).updateExpense(
-                        id, title.text.toString(), value
+                        id,
+                        title.text.toString(),
+                        value
                     )
                     showHome()
-                } else showMessage("सही नाम और रकम लिखें।")
+                } else {
+                    showMessage("सही नाम और रकम लिखें।")
+                }
             }
             .show()
     }
@@ -621,7 +744,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         val labels = entries.map {
-            "${it.name}  •  ${it.quantity} पीस × ${money(it.rate)} = ${money(it.total)}" +
+            "${it.name}  •  ${it.quantity} पीस × " +
+                "${money(it.rate)} = ${money(it.total)}" +
                 if (it.photo != null) "\n📷 फोटो जुड़ी है" else ""
         }.toTypedArray()
 
@@ -639,11 +763,11 @@ class MainActivity : AppCompatActivity() {
 
         val message =
             "नाम: ${item.name}\n" +
-            "मात्रा: ${item.quantity} पीस\n" +
-            "रेट: ${money(item.rate)}\n" +
-            "कुल: ${money(item.total)}\n" +
-            "तारीख: ${date(item.createdAt)}\n" +
-            "फोटो: ${if (item.photo.isNullOrBlank()) "नहीं" else "हाँ"}"
+                "मात्रा: ${item.quantity} पीस\n" +
+                "रेट: ${money(item.rate)}\n" +
+                "कुल: ${money(item.total)}\n" +
+                "तारीख: ${date(item.createdAt)}\n" +
+                "फोटो: ${if (item.photo.isNullOrBlank()) "नहीं" else "हाँ"}"
 
         val actions = if (item.photo.isNullOrBlank()) {
             arrayOf("Edit", "Delete", "बंद")
@@ -657,13 +781,17 @@ class MainActivity : AppCompatActivity() {
             .setItems(actions) { _, which ->
                 when (actions[which]) {
                     "Edit" -> editProduction(item)
-                    "फोटो देखें" -> item.photo?.let { showFullPhoto(it) }
+                    "फोटो देखें" ->
+                        item.photo?.let { showFullPhoto(it) }
+
                     "Delete" -> confirmDelete(
                         "यह पीस हटाएँ?",
                         "यह एंट्री और इससे जुड़ी फोटो हट जाएगी।"
                     ) {
                         manager.deleteEntry(item.id)
-                        item.photo?.let { PhotoManager(this).deletePhoto(it) }
+                        item.photo?.let {
+                            PhotoManager(this).deletePhoto(it)
+                        }
                         showHome()
                     }
                 }
@@ -677,6 +805,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 8, 20, 8)
         }
+
         val name = EditText(this).apply {
             hint = "पीस का नाम"
             setText(item.name)
@@ -701,15 +830,22 @@ class MainActivity : AppCompatActivity() {
             .setView(box)
             .setNegativeButton("रद्द", null)
             .setPositiveButton("सेव") { _, _ ->
-                val q = quantity.text.toString().toIntOrNull() ?: 0
-                val r = rate.text.toString().toDoubleOrNull() ?: -1.0
+                val q =
+                    quantity.text.toString().toIntOrNull() ?: 0
+                val r =
+                    rate.text.toString().toDoubleOrNull() ?: -1.0
 
                 if (name.text.isNotBlank() && q > 0 && r >= 0) {
                     ProductionManager(db).updateDetails(
-                        item.id, name.text.toString(), q, r
+                        item.id,
+                        name.text.toString(),
+                        q,
+                        r
                     )
                     showHome()
-                } else showMessage("सही नाम, मात्रा और रेट भरें।")
+                } else {
+                    showMessage("सही नाम, मात्रा और रेट भरें।")
+                }
             }
             .show()
     }
@@ -723,21 +859,31 @@ class MainActivity : AppCompatActivity() {
             .setTitle(title)
             .setMessage(message)
             .setNegativeButton("नहीं", null)
-            .setPositiveButton("हाँ, हटाएँ") { _, _ -> action() }
+            .setPositiveButton("हाँ, हटाएँ") { _, _ ->
+                action()
+            }
             .show()
     }
 
-    private fun summaryCard(title: String, value: String): View {
+    private fun summaryCard(
+        title: String,
+        value: String,
+        boxId: String
+    ): View {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(18, 16, 18, 16)
-            setBackgroundColor(0xFF202D42.toInt())
         }
+
         card.addView(text(title, 14f, MUTED))
         card.addView(text(value, 23f, WHITE, true))
-        card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
-            bottomMargin = 12
-        }
+
+        card.layoutParams =
+            LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = 12
+            }
+
+        DesignManager(this).applyTo(card, boxId)
         return card
     }
 
@@ -746,13 +892,22 @@ class MainActivity : AppCompatActivity() {
         size: Float,
         color: Int,
         bold: Boolean = false
-    ): TextView = TextView(this).apply {
-        text = value
-        textSize = size
-        setTextColor(color)
-        gravity = Gravity.CENTER_VERTICAL
-        if (bold) setTypeface(null, android.graphics.Typeface.BOLD)
-        setPadding(4, 8, 4, 8)
+    ): TextView {
+        return TextView(this).apply {
+            text = value
+            textSize = size
+            setTextColor(color)
+            gravity = Gravity.CENTER_VERTICAL
+
+            if (bold) {
+                setTypeface(
+                    null,
+                    android.graphics.Typeface.BOLD
+                )
+            }
+
+            setPadding(4, 8, 4, 8)
+        }
     }
 
     private fun addButton(
@@ -767,17 +922,26 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun space(): View =
-        View(this).apply {
+    private fun space(): View {
+        return View(this).apply {
             layoutParams = LinearLayout.LayoutParams(1, 16)
         }
+    }
 
-    private fun money(value: Double): String =
-        "₹" + String.format(Locale.getDefault(), "%.2f", value)
+    private fun money(value: Double): String {
+        return "₹" + String.format(
+            Locale.getDefault(),
+            "%.2f",
+            value
+        )
+    }
 
-    private fun date(timestamp: Long): String =
-        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-            .format(Date(timestamp))
+    private fun date(timestamp: Long): String {
+        return SimpleDateFormat(
+            "dd MMM yyyy, hh:mm a",
+            Locale.getDefault()
+        ).format(Date(timestamp))
+    }
 
     private fun showMessage(message: String) {
         AlertDialog.Builder(this)
